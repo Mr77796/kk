@@ -737,7 +737,7 @@ end)
 
 
 Section:NewButton("Animations", "Animations", function()
-    loadstring(game:HttpGet("https://pastebin.com/raw/1nJD7PkH",true))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/7yd7/Hub/refs/heads/Branch/GUIS/Emotes.lua"))()
 end)
 
 
