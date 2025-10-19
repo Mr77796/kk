@@ -736,7 +736,7 @@ end)
 end)
 
 
-Section:NewButton("Animations", "Animations", function()
+Section:NewButton("Animations", "Animations 7yd7", function()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/7yd7/Hub/refs/heads/Branch/GUIS/Emotes.lua"))()
 end)
 
@@ -760,4 +760,9 @@ while wait(0.5) do
         end
     end
 end
+end)
+
+
+Section:NewButton("Animations", "Animations Stealer", function()
+    loadstring(game:HttpGet("https://pastebin.com/raw/1nJD7PkH",true))()
 end)
