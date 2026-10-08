@@ -1,6 +1,6 @@
 -- ============================================
--- Foxude | FTAP Hub v7
--- Anchor fix: PartOwner is searched in all children
+-- Foxude Mobile | FTAP Hub v7-M
+-- Mobile version with on-screen buttons
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -16,7 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LP = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
-print("-[(Foxude) v7 loaded]-")
+print("-[(Foxude) MOBILE v7 loaded]-")
 
 local GrabEvents, CharacterEvents, SetNetworkOwner, Struggle
 local GameCorrectionEvents, StopAllVelocity, RagdollRemote
@@ -47,13 +47,11 @@ local Config = {
     AntiKickGrabEnabled = false,
     AntiExplosionEnabled = false,
     SelfDefenseEnabled = false,
-    SelfDefenseKickEnabled = false,
     AntiFlingEnabled = false,
     StrengthEnabled = false,
     AnchorGrabEnabled = false,
-    MenuKey = Enum.KeyCode.RightControl,
     IconVisible = true, IconPosX = 30, IconPosY = 300,
-    Transparency = 0, MenuWidth = 400, MenuHeight = 650,
+    Transparency = 0, MenuWidth = 340, MenuHeight = 520,
     AccentR = 0, AccentG = 255, AccentB = 170,
     AccentColor = Color3.fromRGB(0, 255, 170),
 }
@@ -111,7 +109,7 @@ local function findClosestTarget(maxDist)
     return best
 end
 
--- MOVEMENT
+-- MOVEMENT (mobile: uses game's built-in joystick)
 local function setFly(enabled)
     Config.FlyEnabled = enabled
     local char = getChar() if not char then return end
@@ -137,14 +135,13 @@ local function setFly(enabled)
             if not b or not g then return end
             local cam = workspace.CurrentCamera
             g.CFrame = cam.CFrame
-            local m = Vector3.zero
-            if UIS:IsKeyDown(Enum.KeyCode.W) then m += cam.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then m -= cam.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then m -= cam.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then m += cam.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.Space) then m += Vector3.yAxis end
-            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then m -= Vector3.yAxis end
-            b.Velocity = m.Magnitude > 0 and m.Unit * Config.FlySpeed or Vector3.zero
+            -- Mobile: use Humanoid.MoveDirection (from game joystick)
+            local move = Vector3.zero
+            local hum2 = c:FindFirstChildOfClass("Humanoid")
+            if hum2 then
+                move = hum2.MoveDirection * Config.FlySpeed
+            end
+            b.Velocity = move
         end)
     else
         RunService:UnbindFromRenderStep("Foxude_Fly")
@@ -204,13 +201,9 @@ local function setStrength(enabled)
             velocityObj.Velocity = Vector3.zero
             model:GetPropertyChangedSignal("Parent"):Connect(function()
                 if not model.Parent then
-                    if UIS:GetLastInputType() == Enum.UserInputType.MouseButton2 then
-                        velocityObj.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                        velocityObj.Velocity = workspace.CurrentCamera.CFrame.LookVector * Config.ThrowPower
-                        Debris:AddItem(velocityObj, 1)
-                    else
-                        velocityObj:Destroy()
-                    end
+                    velocityObj.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    velocityObj.Velocity = workspace.CurrentCamera.CFrame.LookVector * Config.ThrowPower
+                    Debris:AddItem(velocityObj, 1)
                 end
             end)
         end
@@ -225,7 +218,6 @@ local function setAntiGrab(enabled)
         State.AntiGrabConnection = nil
     end
     if not enabled then return end
-
     State.AntiGrabConnection = RunService.Heartbeat:Connect(function()
         local character = LP.Character
         if not character then return end
@@ -233,16 +225,13 @@ local function setAntiGrab(enabled)
         if not head then return end
         local partOwner = head:FindFirstChild("PartOwner")
         if not partOwner then return end
-
         pcall(function()
             if Struggle then Struggle:FireServer() end
             if StopAllVelocity then StopAllVelocity:FireServer() end
         end)
-
         for _, part in ipairs(character:GetChildren()) do
             if part:IsA("BasePart") then part.Anchored = true end
         end
-
         task.spawn(function()
             local held = LP:FindFirstChild("IsHeld")
             if held then
@@ -267,7 +256,6 @@ local function setAntiKickGrab(enabled)
         State.AntiKickGrabConnection = nil
     end
     if not enabled then return end
-
     State.AntiKickGrabConnection = RunService.Heartbeat:Connect(function()
         local character = LP.Character
         if not character then return end
@@ -293,7 +281,6 @@ local function setupAntiExplosion(character)
     if not humanoid then return end
     local partOwner = humanoid:FindFirstChild("Ragdolled")
     if not partOwner then return end
-
     State.AntiExplosionConnection = partOwner:GetPropertyChangedSignal("Value"):Connect(function()
         if partOwner.Value then
             for _, part in ipairs(character:GetChildren()) do
@@ -318,10 +305,8 @@ local function setAntiExplosion(enabled)
         State.AntiExplosionCharConn = nil
     end
     if not enabled then return end
-
     local char = LP.Character
     if char then setupAntiExplosion(char) end
-
     State.AntiExplosionCharConn = LP.CharacterAdded:Connect(function(c)
         if State.AntiExplosionConnection then
             State.AntiExplosionConnection:Disconnect()
@@ -338,7 +323,6 @@ local function setSelfDefense(enabled)
         State.SelfDefenseCoroutine = nil
     end
     if not enabled then return end
-
     State.SelfDefenseCoroutine = RunService.Heartbeat:Connect(function()
         local character = LP.Character
         if not character then return end
@@ -346,7 +330,6 @@ local function setSelfDefense(enabled)
         if not head then return end
         local partOwner = head:FindFirstChild("PartOwner")
         if not partOwner then return end
-
         local attacker = Players:FindFirstChild(partOwner.Value)
         if attacker and attacker.Character then
             pcall(function()
@@ -369,20 +352,11 @@ local function setSelfDefense(enabled)
     end)
 end
 
-local function setSelfDefenseKick(enabled)
-    Config.SelfDefenseKickEnabled = enabled
-    if enabled then
-        Notify("Self Defense", "Kick Silent — stub (like in VenomX)", 3)
-    end
-end
-
 local function setAntiFling(enabled)
     Config.AntiFlingEnabled = enabled
 end
 
--- ============================================
--- ANCHOR GRAB v7 (correct PartOwner search)
--- ============================================
+-- ANCHOR
 local function isDescendantOf(target, other)
     local currentParent = target.Parent
     while currentParent do
@@ -404,13 +378,9 @@ local function createAnchorHighlight(parent)
 end
 
 local function findPartOwner(obj)
-    if obj:FindFirstChild("PartOwner") then
-        return obj:FindFirstChild("PartOwner")
-    end
+    if obj:FindFirstChild("PartOwner") then return obj:FindFirstChild("PartOwner") end
     for _, child in ipairs(obj:GetDescendants()) do
-        if child.Name == "PartOwner" then
-            return child
-        end
+        if child.Name == "PartOwner" then return child end
     end
     return nil
 end
@@ -451,56 +421,40 @@ local function setAnchorGrab(enabled)
         State.AnchorGrabConnection = nil
     end
     if not enabled then return end
-
     State.AnchorGrabConnection = RunService.Heartbeat:Connect(function()
         pcall(function()
             local grabParts = workspace:FindFirstChild("GrabParts")
             if not grabParts then return end
-
             local grabPart = grabParts:FindFirstChild("GrabPart")
             if not grabPart then return end
-
             local weld = grabPart:FindFirstChild("WeldConstraint")
             if not weld or not weld.Part1 then return end
-
             local primaryPart = weld.Part1
             if not primaryPart then return end
-
             if isDescendantOf(primaryPart, workspace.Map) then return end
-
             for _, player in ipairs(Players:GetChildren()) do
-                if player.Character and isDescendantOf(primaryPart, player.Character) then
-                    return
-                end
+                if player.Character and isDescendantOf(primaryPart, player.Character) then return end
             end
-
             local partOwner = findPartOwner(primaryPart)
             local isMine = partOwner and partOwner.Value == LP.Name
-
             local target = primaryPart
             local ancestor = primaryPart:FindFirstAncestorOfClass("Model")
             if ancestor and ancestor ~= workspace and ancestor ~= workspace.Map then
                 target = ancestor
             end
-
             if isMine then
                 local wasAnchored = false
                 for _, v in ipairs(State.AnchoredParts) do
                     if v == target then wasAnchored = true break end
                 end
-                if wasAnchored then
-                    unanchorTarget(target)
-                end
+                if wasAnchored then unanchorTarget(target) end
                 return
             end
-
             for _, v in ipairs(State.AnchoredParts) do
                 if v == target then return end
             end
-
             table.insert(State.AnchoredParts, target)
             createAnchorHighlight(target)
-
             local conn = target.DescendantAdded:Connect(function(desc)
                 if desc.Name == "PartOwner" and desc.Value ~= LP.Name then
                     local hl = target:FindFirstChild("Foxude_AnchorHL")
@@ -508,12 +462,9 @@ local function setAnchorGrab(enabled)
                 end
             end)
             table.insert(State.AnchorConnections, conn)
-
             if target:IsA("Model") then
                 for _, child in ipairs(target:GetDescendants()) do
-                    if child:IsA("BasePart") then
-                        child.Anchored = true
-                    end
+                    if child:IsA("BasePart") then child.Anchored = true end
                 end
             else
                 primaryPart.Anchored = true
@@ -711,20 +662,6 @@ local function rejoin()
     end)
 end
 
-local function serverHop()
-    pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
-        local res = game:HttpGet(url)
-        local data = HttpService:JSONDecode(res)
-        for _, s in ipairs(data.data) do
-            if s.playing < s.maxPlayers and s.id ~= game.JobId then
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, s.id, LP)
-                return
-            end
-        end
-    end)
-end
-
 local API = {
     SetFly = setFly, SetSpeed = setSpeed, SetNoclip = setNoclip, SetInfJump = setInfJump,
     SetESP = function(e) Config.ESPEnabled = e; refreshESP() end,
@@ -734,60 +671,14 @@ local API = {
     SetAntiKickGrab = setAntiKickGrab,
     SetAntiExplosion = setAntiExplosion,
     SetSelfDefense = setSelfDefense,
-    SetSelfDefenseKick = setSelfDefenseKick,
     SetAntiFling = setAntiFling,
     SetAnchorGrab = setAnchorGrab,
     UnanchorAll = unanchorAll,
     Grab = function(mode) local t = findClosestTarget(Config.GrabRange) if t then Config.GrabMode = mode or Config.GrabMode grabTarget(t, Config.GrabMode) end end,
     Release = releaseGrab,
     Rejoin = rejoin,
-    ServerHop = serverHop,
     Config = Config, State = State,
 }
-
--- SAVE/LOAD
-local SAVE_KEY = "Foxude_Settings_v7.json"
-local function saveSettings()
-    pcall(function()
-        local data = {
-            FlySpeed = Config.FlySpeed, SpeedValue = Config.SpeedValue,
-            GrabRange = Config.GrabRange, ThrowPower = Config.ThrowPower,
-            FlyEnabled = Config.FlyEnabled, SpeedEnabled = Config.SpeedEnabled,
-            NoclipEnabled = Config.NoclipEnabled, InfJumpEnabled = Config.InfJumpEnabled,
-            ESPEnabled = Config.ESPEnabled, ESPShowName = Config.ESPShowName,
-            ESPShowDist = Config.ESPShowDist, ESPShowHP = Config.ESPShowHP,
-            FullbrightEnabled = Config.FullbrightEnabled,
-            AntiGrabEnabled = Config.AntiGrabEnabled,
-            AntiKickGrabEnabled = Config.AntiKickGrabEnabled,
-            AntiExplosionEnabled = Config.AntiExplosionEnabled,
-            SelfDefenseEnabled = Config.SelfDefenseEnabled,
-            AntiFlingEnabled = Config.AntiFlingEnabled,
-            StrengthEnabled = Config.StrengthEnabled,
-            MenuKey = Config.MenuKey.Name, IconVisible = Config.IconVisible,
-            IconPosX = Config.IconPosX, IconPosY = Config.IconPosY,
-            Transparency = Config.Transparency, MenuWidth = Config.MenuWidth,
-            MenuHeight = Config.MenuHeight,
-            AccentR = Config.AccentR, AccentG = Config.AccentG, AccentB = Config.AccentB,
-        }
-        writefile(SAVE_KEY, HttpService:JSONEncode(data))
-    end)
-end
-
-local Saved = nil
-pcall(function() Saved = HttpService:JSONDecode(readfile(SAVE_KEY)) end)
-
-if Saved then
-    for _, k in ipairs({"FlySpeed","SpeedValue","GrabRange","ThrowPower",
-        "IconVisible","IconPosX","IconPosY","Transparency","MenuWidth","MenuHeight",
-        "ESPShowName","ESPShowDist","ESPShowHP","AccentR","AccentG","AccentB"}) do
-        if Saved[k] ~= nil then Config[k] = Saved[k] end
-    end
-    if Saved.MenuKey then
-        local ok, key = pcall(function() return Enum.KeyCode[Saved.MenuKey] end)
-        if ok then Config.MenuKey = key end
-    end
-    updateAccentFromRGB()
-end
 
 -- NOTIFY
 local notifyStack = 0
@@ -844,7 +735,7 @@ local function Notify(title, body, dur)
     end)
 end
 
--- GUI
+-- GUI (mobile-sized)
 local Gui = Instance.new("ScreenGui")
 Gui.Name = "Foxude"
 Gui.ResetOnSpawn = false
@@ -858,8 +749,8 @@ Main.Position = UDim2.new(0.5, -WIN_W/2, 0.5, -WIN_H/2)
 Main.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
 Main.BackgroundTransparency = Config.Transparency
 Main.BorderSizePixel = 0
-Main.Active = false
-Main.Draggable = false
+Main.Active = true  -- mobile: menu draggable by touching header
+Main.Draggable = true
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 14)
 local stroke = Instance.new("UIStroke", Main)
@@ -867,10 +758,9 @@ stroke.Color = Color3.fromRGB(30, 30, 42)
 stroke.Thickness = 1
 
 local Header = Instance.new("Frame", Main)
-Header.Size = UDim2.new(1, 0, 0, 50)
+Header.Size = UDim2.new(1, 0, 0, 44)
 Header.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
 Header.BorderSizePixel = 0
-Header.Active = true
 Header.ClipsDescendants = true
 Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 14)
 local hFix = Instance.new("Frame", Header)
@@ -879,30 +769,28 @@ hFix.Position = UDim2.new(0, 0, 1, -14)
 hFix.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
 hFix.BorderSizePixel = 0
 hFix.ZIndex = 2
-hFix.Active = false
 
 local dot = Instance.new("Frame", Header)
 dot.Size = UDim2.new(0, 8, 0, 8)
-dot.Position = UDim2.new(0, 14, 0.5, -4)
+dot.Position = UDim2.new(0, 12, 0.5, -4)
 dot.BackgroundColor3 = Config.AccentColor
 dot.ZIndex = 3
 Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
 
 local Title = Instance.new("TextLabel", Header)
-Title.Size = UDim2.new(1, -80, 1, 0)
-Title.Position = UDim2.new(0, 30, 0, 0)
+Title.Size = UDim2.new(1, -70, 1, 0)
+Title.Position = UDim2.new(0, 26, 0, 0)
 Title.BackgroundTransparency = 1
-Title.Text = "FOXUDE  ·  FTAP v7"
+Title.Text = "FOXUDE · MOBILE"
 Title.TextColor3 = Config.AccentColor
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 15
+Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.ZIndex = 3
-Title.Active = false
 
 local CloseBtn = Instance.new("TextButton", Header)
 CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -40, 0.5, -15)
+CloseBtn.Position = UDim2.new(1, -38, 0.5, -15)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 CloseBtn.Text = "×"
 CloseBtn.TextColor3 = Color3.new(1,1,1)
@@ -913,45 +801,17 @@ CloseBtn.BorderSizePixel = 0
 Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 7)
 CloseBtn.MouseButton1Click:Connect(function() Gui.Enabled = false end)
 
-local dragging, dragStart, startPos
-Header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = Main.Position
-    end
-end)
-UIS.InputChanged:Connect(function(input)
-    if not dragging then return end
-    if input.UserInputType == Enum.UserInputType.MouseMovement
-    or input.UserInputType == Enum.UserInputType.Touch then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(
-            startPos.X.Scale, startPos.X.Offset + delta.X,
-            startPos.Y.Scale, startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
-local TABS = {"Grab", "Defense", "Move", "Visual", "Misc", "Settings"}
+local TABS = {"Grab", "Defense", "Move", "Visual", "Misc"}
 local TabFrames, TabBtns = {}, {}
 
 local TabBar = Instance.new("Frame", Main)
-TabBar.Size = UDim2.new(1, -16, 0, 32)
-TabBar.Position = UDim2.new(0, 8, 0, 56)
+TabBar.Size = UDim2.new(1, -16, 0, 30)
+TabBar.Position = UDim2.new(0, 8, 0, 50)
 TabBar.BackgroundTransparency = 1
 
 local TabGrid = Instance.new("UIGridLayout", TabBar)
-TabGrid.CellSize = UDim2.new(1/#TABS, -6, 1, 0)
-TabGrid.CellPadding = UDim2.new(0, 6, 0, 0)
-TabGrid.SortOrder = Enum.SortOrder.LayoutOrder
+TabGrid.CellSize = UDim2.new(1/#TABS, -4, 1, 0)
+TabGrid.CellPadding = UDim2.new(0, 4, 0, 0)
 
 local function switchTab(name)
     for n, fr in pairs(TabFrames) do fr.Visible = (n == name) end
@@ -983,11 +843,10 @@ for i, name in ipairs(TABS) do
 end
 
 local Content = Instance.new("Frame", Main)
-Content.Size = UDim2.new(1, -16, 1, -100)
-Content.Position = UDim2.new(0, 8, 0, 94)
+Content.Size = UDim2.new(1, -16, 1, -90)
+Content.Position = UDim2.new(0, 8, 0, 84)
 Content.BackgroundTransparency = 1
 Content.ClipsDescendants = true
-Content.Active = false
 
 for _, name in ipairs(TABS) do
     local sf = Instance.new("ScrollingFrame", Content)
@@ -999,12 +858,10 @@ for _, name in ipairs(TABS) do
     sf.AutomaticCanvasSize = Enum.AutomaticSize.Y
     sf.CanvasSize = UDim2.new(0,0,0,0)
     sf.Visible = (name == "Grab")
-    sf.Active = false
     sf.BorderSizePixel = 0
     TabFrames[name] = sf
     local ll = Instance.new("UIListLayout", sf)
-    ll.Padding = UDim.new(0, 7)
-    ll.SortOrder = Enum.SortOrder.LayoutOrder
+    ll.Padding = UDim.new(0, 6)
     local pad = Instance.new("UIPadding", sf)
     pad.PaddingTop = UDim.new(0, 4)
     pad.PaddingBottom = UDim.new(0, 6)
@@ -1012,19 +869,19 @@ end
 
 local function sectionLabel(parent, text, order)
     local lbl = Instance.new("TextLabel", parent)
-    lbl.Size = UDim2.new(1, -4, 0, 20)
+    lbl.Size = UDim2.new(1, -4, 0, 18)
     lbl.BackgroundTransparency = 1
     lbl.Text = text
     lbl.TextColor3 = Color3.fromRGB(100, 100, 120)
     lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 10
+    lbl.TextSize = 9
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.LayoutOrder = order
 end
 
 local function AddToggle(parent, text, order, callback)
     local row = Instance.new("TextButton", parent)
-    row.Size = UDim2.new(1, -4, 0, 36)
+    row.Size = UDim2.new(1, -4, 0, 40)
     row.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
     row.Text = ""
     row.AutoButtonColor = false
@@ -1032,7 +889,7 @@ local function AddToggle(parent, text, order, callback)
     row.BorderSizePixel = 0
     Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
     local lbl = Instance.new("TextLabel", row)
-    lbl.Size = UDim2.new(1, -64, 1, 0)
+    lbl.Size = UDim2.new(1, -70, 1, 0)
     lbl.Position = UDim2.new(0, 12, 0, 0)
     lbl.BackgroundTransparency = 1
     lbl.Text = text
@@ -1040,16 +897,15 @@ local function AddToggle(parent, text, order, callback)
     lbl.Font = Enum.Font.Gotham
     lbl.TextSize = 12
     lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Active = false
     local pill = Instance.new("Frame", row)
-    pill.Size = UDim2.new(0, 40, 0, 20)
-    pill.Position = UDim2.new(1, -50, 0.5, -10)
+    pill.Size = UDim2.new(0, 44, 0, 22)
+    pill.Position = UDim2.new(1, -54, 0.5, -11)
     pill.BackgroundColor3 = Color3.fromRGB(38, 38, 50)
     pill.BorderSizePixel = 0
     Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
     local knob = Instance.new("Frame", pill)
-    knob.Size = UDim2.new(0, 14, 0, 14)
-    knob.Position = UDim2.new(0, 3, 0.5, -7)
+    knob.Size = UDim2.new(0, 16, 0, 16)
+    knob.Position = UDim2.new(0, 3, 0.5, -8)
     knob.BackgroundColor3 = Color3.fromRGB(120, 120, 135)
     knob.BorderSizePixel = 0
     Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
@@ -1059,14 +915,14 @@ local function AddToggle(parent, text, order, callback)
         if on then
             TweenService:Create(pill, TweenInfo.new(0.15), {BackgroundColor3 = Config.AccentColor}):Play()
             TweenService:Create(knob, TweenInfo.new(0.15), {
-                Position = UDim2.new(1, -17, 0.5, -7),
+                Position = UDim2.new(1, -19, 0.5, -8),
                 BackgroundColor3 = Color3.new(1,1,1)
             }):Play()
             row.BackgroundColor3 = Color3.fromRGB(16, 30, 24)
         else
             TweenService:Create(pill, TweenInfo.new(0.15), {BackgroundColor3 = Color3.fromRGB(38,38,50)}):Play()
             TweenService:Create(knob, TweenInfo.new(0.15), {
-                Position = UDim2.new(0, 3, 0.5, -7),
+                Position = UDim2.new(0, 3, 0.5, -8),
                 BackgroundColor3 = Color3.fromRGB(120,120,135)
             }):Play()
             row.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
@@ -1075,18 +931,16 @@ local function AddToggle(parent, text, order, callback)
     end
     row.MouseButton1Click:Connect(function()
         setState(not on)
-        saveSettings()
     end)
     return setState
 end
 
 local function AddSlider(parent, text, order, min, max, default, fmt, callback)
     local fr = Instance.new("Frame", parent)
-    fr.Size = UDim2.new(1, -4, 0, 52)
+    fr.Size = UDim2.new(1, -4, 0, 56)
     fr.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
     fr.LayoutOrder = order
     fr.BorderSizePixel = 0
-    fr.Active = false
     Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 8)
     local lbl = Instance.new("TextLabel", fr)
     lbl.Size = UDim2.new(1, -20, 0, 18)
@@ -1096,26 +950,31 @@ local function AddSlider(parent, text, order, min, max, default, fmt, callback)
     lbl.TextSize = 12
     lbl.TextXAlignment = Enum.TextXAlignment.Left
     lbl.TextColor3 = Color3.fromRGB(200, 200, 215)
-    lbl.Active = false
     local track = Instance.new("Frame", fr)
-    track.Size = UDim2.new(1, -20, 0, 5)
-    track.Position = UDim2.new(0, 10, 0, 32)
+    track.Size = UDim2.new(1, -20, 0, 10)
+    track.Position = UDim2.new(0, 10, 0, 36)
     track.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
     track.BorderSizePixel = 0
-    track.Active = true
     Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
     local fill = Instance.new("Frame", track)
     fill.BackgroundColor3 = Config.AccentColor
     fill.BorderSizePixel = 0
-    fill.Active = false
     Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
     fill.Size = UDim2.new((default - min)/(max - min), 0, 1, 0)
+    local knob = Instance.new("Frame", track)
+    knob.Size = UDim2.new(0, 22, 0, 22)
+    knob.Position = UDim2.new((default - min)/(max - min), -11, 0.5, -11)
+    knob.BackgroundColor3 = Color3.new(1,1,1)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 2
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
     local function setValue(val, silent)
         val = math.clamp(math.floor(val), min, max)
         local rel = (val - min)/(max - min)
         fill.Size = UDim2.new(rel, 0, 1, 0)
+        knob.Position = UDim2.new(rel, -11, 0.5, -11)
         lbl.Text = text .. "  " .. (fmt and string.format(fmt, val) or tostring(val))
-        if not silent then callback(val); saveSettings() end
+        if not silent then callback(val) end
     end
     setValue(default, true)
     local isDragging = false
@@ -1125,9 +984,7 @@ local function AddSlider(parent, text, order, min, max, default, fmt, callback)
     end)
     UIS.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1
-        or i.UserInputType == Enum.UserInputType.Touch then
-            if isDragging then isDragging = false; saveSettings() end
-        end
+        or i.UserInputType == Enum.UserInputType.Touch then isDragging = false end
     end)
     UIS.InputChanged:Connect(function(i)
         if not isDragging then return end
@@ -1143,7 +1000,7 @@ end
 
 local function AddButton(parent, text, order, callback, color)
     local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(1, -4, 0, 40)
+    btn.Size = UDim2.new(1, -4, 0, 44)
     btn.BackgroundColor3 = color or Color3.fromRGB(26, 26, 34)
     btn.Text = text
     btn.TextColor3 = Color3.new(1,1,1)
@@ -1159,177 +1016,55 @@ end
 
 -- GRAB TAB
 local GrabTab = TabFrames.Grab
-sectionLabel(GrabTab, "GRAB SETTINGS", 0)
-local setGrabRange = AddSlider(GrabTab, "Grab Range", 1, 10, 100, Config.GrabRange, "%d st", function(v) Config.GrabRange = v end)
+sectionLabel(GrabTab, "GRAB", 0)
+local setGrabRange = AddSlider(GrabTab, "Grab Range", 1, 10, 100, Config.GrabRange, "%d", function(v) Config.GrabRange = v end)
 local setThrowPower = AddSlider(GrabTab, "Throw Power", 2, 100, 2000, Config.ThrowPower, "%d", function(v) Config.ThrowPower = v end)
-sectionLabel(GrabTab, "STRENGTH (RMB on release)", 3)
-local setStrength = AddToggle(GrabTab, "Strength (GrabParts)", 4, function(s) API.SetStrength(s); Notify("Strength", s and "ON" or "OFF", 2) end)
-sectionLabel(GrabTab, "ANCHOR (hold - move, release - anchor)", 5)
-local setAnchorToggle = AddToggle(GrabTab, "Anchor Grab", 6, function(s) API.SetAnchorGrab(s); Notify("Anchor", s and "ON" or "OFF", 2) end)
-AddButton(GrabTab, "Unanchor All", 7, function() API.UnanchorAll(); Notify("Anchor", "Released all", 2) end, Color3.fromRGB(200, 100, 40))
-sectionLabel(GrabTab, "ACTIONS", 8)
-AddButton(GrabTab, "GRAB (Q)", 9, function() API.Grab("Spin"); Notify("Foxude", "Grabbed", 2) end, Config.AccentColor)
-AddButton(GrabTab, "RELEASE (E)", 10, function() API.Release(); Notify("Foxude", "Released", 2) end, Color3.fromRGB(200, 100, 40))
+AddToggle(GrabTab, "Strength", 3, function(s) API.SetStrength(s); Notify("Strength", s and "ON" or "OFF", 2) end)
+AddToggle(GrabTab, "Anchor Grab", 4, function(s) API.SetAnchorGrab(s); Notify("Anchor", s and "ON" or "OFF", 2) end)
+AddButton(GrabTab, "Unanchor All", 5, function() API.UnanchorAll(); Notify("Anchor", "Released", 2) end, Color3.fromRGB(200, 100, 40))
+AddButton(GrabTab, "GRAB", 6, function() API.Grab("Spin"); Notify("Foxude", "Grabbed", 2) end, Config.AccentColor)
+AddButton(GrabTab, "RELEASE", 7, function() API.Release(); Notify("Foxude", "Released", 2) end, Color3.fromRGB(200, 100, 40))
 
 -- DEFENSE TAB
 local DefTab = TabFrames.Defense
 sectionLabel(DefTab, "ANTI-GRAB", 0)
-local setAntiGrab = AddToggle(DefTab, "Anti Grab (Struggle)", 1, function(s) API.SetAntiGrab(s); Notify("Anti-Grab", s and "ON" or "OFF", 2) end)
-local setAntiKickGrab = AddToggle(DefTab, "Anti Kick Grab", 2, function(s) API.SetAntiKickGrab(s); Notify("Anti-Kick Grab", s and "ON" or "OFF", 2) end)
-local setAntiExplosion = AddToggle(DefTab, "Anti Explosion", 3, function(s) API.SetAntiExplosion(s); Notify("Anti-Explosion", s and "ON" or "OFF", 2) end)
+AddToggle(DefTab, "Anti Grab", 1, function(s) API.SetAntiGrab(s); Notify("Anti-Grab", s and "ON" or "OFF", 2) end)
+AddToggle(DefTab, "Anti Kick Grab", 2, function(s) API.SetAntiKickGrab(s); Notify("Anti-Kick", s and "ON" or "OFF", 2) end)
+AddToggle(DefTab, "Anti Explosion", 3, function(s) API.SetAntiExplosion(s); Notify("Anti-Exp", s and "ON" or "OFF", 2) end)
 sectionLabel(DefTab, "SELF DEFENSE", 4)
-local setSelfDefense = AddToggle(DefTab, "Self Defense / Air Suspend", 5, function(s) API.SetSelfDefense(s); Notify("Self Defense", s and "ON" or "OFF", 2) end)
-local setSelfDefenseKick = AddToggle(DefTab, "Self Defense / Kick Silent", 6, function(s) API.SetSelfDefenseKick(s) end)
-sectionLabel(DefTab, "OTHER", 7)
-local setAntiFling = AddToggle(DefTab, "Anti-Fling", 8, function(s) API.SetAntiFling(s); Notify("Anti-Fling", s and "ON" or "OFF", 2) end)
+AddToggle(DefTab, "Self Defense", 5, function(s) API.SetSelfDefense(s); Notify("Self Def", s and "ON" or "OFF", 2) end)
+AddToggle(DefTab, "Anti-Fling", 6, function(s) API.SetAntiFling(s); Notify("Anti-Fling", s and "ON" or "OFF", 2) end)
 
 -- MOVE
 local MoveTab = TabFrames.Move
 sectionLabel(MoveTab, "MOVEMENT", 0)
-local setFlySpeed = AddSlider(MoveTab, "Fly Speed", 1, 10, 200, Config.FlySpeed, "%d st/s", function(v) Config.FlySpeed = v end)
-local setFly = AddToggle(MoveTab, "Fly", 2, function(s) API.SetFly(s); Notify("Fly", s and "ON" or "OFF", 2) end)
-local setSpeedVal = AddSlider(MoveTab, "Speed", 3, 16, 150, Config.SpeedValue, "%d", function(v) Config.SpeedValue = v; if Config.SpeedEnabled then API.SetSpeed(true, v) end end)
-local setSpeed = AddToggle(MoveTab, "Speed Boost", 4, function(s) API.SetSpeed(s, Config.SpeedValue); Notify("Speed", s and "ON" or "OFF", 2) end)
-local setNoclip = AddToggle(MoveTab, "Noclip", 5, function(s) API.SetNoclip(s); Notify("Noclip", s and "ON" or "OFF", 2) end)
-local setInfJump = AddToggle(MoveTab, "Infinite Jump", 6, function(s) API.SetInfJump(s); Notify("Inf Jump", s and "ON" or "OFF", 2) end)
+AddSlider(MoveTab, "Fly Speed", 1, 10, 200, Config.FlySpeed, "%d", function(v) Config.FlySpeed = v end)
+AddToggle(MoveTab, "Fly", 2, function(s) API.SetFly(s); Notify("Fly", s and "ON" or "OFF", 2) end)
+AddSlider(MoveTab, "Speed", 3, 16, 150, Config.SpeedValue, "%d", function(v) Config.SpeedValue = v; if Config.SpeedEnabled then API.SetSpeed(true, v) end end)
+AddToggle(MoveTab, "Speed", 4, function(s) API.SetSpeed(s, Config.SpeedValue); Notify("Speed", s and "ON" or "OFF", 2) end)
+AddToggle(MoveTab, "Noclip", 5, function(s) API.SetNoclip(s); Notify("Noclip", s and "ON" or "OFF", 2) end)
+AddToggle(MoveTab, "Inf Jump", 6, function(s) API.SetInfJump(s); Notify("Inf Jump", s and "ON" or "OFF", 2) end)
 
 -- VISUAL
 local VisTab = TabFrames.Visual
 sectionLabel(VisTab, "ESP", 0)
-local setESP = AddToggle(VisTab, "ESP", 1, function(s) API.SetESP(s); Notify("ESP", s and "ON" or "OFF", 2) end)
-local setESPName = AddToggle(VisTab, "ESP · Name", 2, function(s) Config.ESPShowName = s end)
-local setESPDist = AddToggle(VisTab, "ESP · Distance", 3, function(s) Config.ESPShowDist = s end)
-local setESPHP = AddToggle(VisTab, "ESP · HP", 4, function(s) Config.ESPShowHP = s end)
+AddToggle(VisTab, "ESP", 1, function(s) API.SetESP(s); Notify("ESP", s and "ON" or "OFF", 2) end)
+AddToggle(VisTab, "Name", 2, function(s) Config.ESPShowName = s end)
+AddToggle(VisTab, "Distance", 3, function(s) Config.ESPShowDist = s end)
+AddToggle(VisTab, "HP", 4, function(s) Config.ESPShowHP = s end)
 sectionLabel(VisTab, "WORLD", 5)
-local setFullbright = AddToggle(VisTab, "Fullbright", 6, function(s) API.SetFullbright(s); Notify("Fullbright", s and "ON" or "OFF", 2) end)
+AddToggle(VisTab, "Fullbright", 6, function(s) API.SetFullbright(s); Notify("Fullbright", s and "ON" or "OFF", 2) end)
 
 -- MISC
 local MiscTab = TabFrames.Misc
 sectionLabel(MiscTab, "UTILITY", 0)
 AddButton(MiscTab, "Rejoin", 1, function() API.Rejoin() end, Color3.fromRGB(60, 120, 180))
-AddButton(MiscTab, "Server Hop", 2, function() API.ServerHop() end, Color3.fromRGB(80, 60, 180))
+AddButton(MiscTab, "Reset Settings", 2, function()
+    pcall(function() delfile("Foxude_Settings_v7.json") end)
+    Notify("Settings", "Reset. Restart.", 4)
+end, Color3.fromRGB(200, 100, 40))
 
--- SETTINGS
-local SettingsTab = TabFrames.Settings
-sectionLabel(SettingsTab, "MENU", 0)
-
-local function AddKeybind(parent, text, order, getter, setter)
-    local fr = Instance.new("Frame", parent)
-    fr.Size = UDim2.new(1, -4, 0, 36)
-    fr.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
-    fr.LayoutOrder = order
-    fr.BorderSizePixel = 0
-    fr.Active = false
-    Instance.new("UICorner", fr).CornerRadius = UDim.new(0, 8)
-    local lbl = Instance.new("TextLabel", fr)
-    lbl.Size = UDim2.new(1, -130, 1, 0)
-    lbl.Position = UDim2.new(0, 12, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = text
-    lbl.TextColor3 = Color3.fromRGB(210, 210, 225)
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 12
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
-    lbl.Active = false
-    local kb = Instance.new("TextButton", fr)
-    kb.Size = UDim2.new(0, 100, 0, 24)
-    kb.Position = UDim2.new(1, -110, 0.5, -12)
-    kb.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
-    kb.Text = getter().Name
-    kb.TextColor3 = Color3.new(1,1,1)
-    kb.Font = Enum.Font.GothamBold
-    kb.TextSize = 11
-    kb.BorderSizePixel = 0
-    Instance.new("UICorner", kb).CornerRadius = UDim.new(0, 6)
-    local listening = false
-    local listenerConn
-    local function stop()
-        listening = false
-        kb.Text = getter().Name
-        kb.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
-        if listenerConn then listenerConn:Disconnect() listenerConn = nil end
-    end
-    kb.MouseButton1Click:Connect(function()
-        if listening then stop() return end
-        listening = true
-        kb.Text = "Press..."
-        kb.BackgroundColor3 = Config.AccentColor
-        listenerConn = UIS.InputBegan:Connect(function(input, gp)
-            if gp then return end
-            if input.UserInputType == Enum.UserInputType.Keyboard then
-                setter(input.KeyCode)
-                saveSettings()
-                stop()
-                Notify("Keybind", text .. " -> " .. input.KeyCode.Name, 2)
-            end
-        end)
-    end)
-end
-
-AddKeybind(SettingsTab, "Menu Key", 1, function() return Config.MenuKey end, function(k) Config.MenuKey = k end)
-sectionLabel(SettingsTab, "ICON", 2)
-local setIconVisible = AddToggle(SettingsTab, "Show Icon", 3, function(s)
-    Config.IconVisible = s
-    if IconBtn then IconBtn.Visible = s end
-end)
-sectionLabel(SettingsTab, "MENU SIZE", 4)
-local setTransparency = AddSlider(SettingsTab, "Transparency %", 5, 0, 80, math.floor(Config.Transparency*100), "%.0f%%", function(v)
-    Config.Transparency = v/100
-    Main.BackgroundTransparency = Config.Transparency
-end)
-local setMenuWidth = AddSlider(SettingsTab, "Width", 6, 300, 700, Config.MenuWidth, "%d px", function(v)
-    Config.MenuWidth = v
-    Main.Size = UDim2.new(0, v, 0, Main.Size.Y.Offset)
-end)
-local setMenuHeight = AddSlider(SettingsTab, "Height", 7, 400, 800, Config.MenuHeight, "%d px", function(v)
-    Config.MenuHeight = v
-    Main.Size = UDim2.new(0, Main.Size.X.Offset, 0, v)
-end)
-sectionLabel(SettingsTab, "CUSTOM COLOR", 8)
-local setR = AddSlider(SettingsTab, "Red", 9, 0, 255, Config.AccentR, "%d", function(v) Config.AccentR = v; updateAccentFromRGB(); applyAccent() end)
-local setG = AddSlider(SettingsTab, "Green", 10, 0, 255, Config.AccentG, "%d", function(v) Config.AccentG = v; updateAccentFromRGB(); applyAccent() end)
-local setB = AddSlider(SettingsTab, "Blue", 11, 0, 255, Config.AccentB, "%d", function(v) Config.AccentB = v; updateAccentFromRGB(); applyAccent() end)
-
-local function applyAccent()
-    local c = Config.AccentColor
-    Title.TextColor3 = c
-    dot.BackgroundColor3 = c
-    for n, btn in pairs(TabBtns) do
-        if TabFrames[n].Visible then btn.BackgroundColor3 = c end
-    end
-    if IconBtn then IconBtn.TextColor3 = c end
-    if IconStroke then IconStroke.Color = c end
-end
-
--- Restore saved settings
-if Saved then
-    if Saved.FlyEnabled then setFly(true, true); API.SetFly(true) end
-    if Saved.SpeedEnabled then setSpeed(true, true); API.SetSpeed(true, Config.SpeedValue) end
-    if Saved.NoclipEnabled then setNoclip(true, true); API.SetNoclip(true) end
-    if Saved.InfJumpEnabled then setInfJump(true, true); API.SetInfJump(true) end
-    if Saved.ESPEnabled then setESP(true, true); API.SetESP(true) end
-    if Saved.ESPShowName ~= nil then setESPName(Saved.ESPShowName, true) end
-    if Saved.ESPShowDist ~= nil then setESPDist(Saved.ESPShowDist, true) end
-    if Saved.ESPShowHP ~= nil then setESPHP(Saved.ESPShowHP, true) end
-    if Saved.FullbrightEnabled then setFullbright(true, true); API.SetFullbright(true) end
-    if Saved.AntiGrabEnabled then setAntiGrab(true, true); API.SetAntiGrab(true) end
-    if Saved.AntiKickGrabEnabled then setAntiKickGrab(true, true); API.SetAntiKickGrab(true) end
-    if Saved.AntiExplosionEnabled then setAntiExplosion(true, true); API.SetAntiExplosion(true) end
-    if Saved.SelfDefenseEnabled then setSelfDefense(true, true); API.SetSelfDefense(true) end
-    if Saved.AntiFlingEnabled then setAntiFling(true, true) end
-    if Saved.StrengthEnabled then setStrength(true, true); API.SetStrength(true) end
-    if Saved.MenuWidth then setMenuWidth(Saved.MenuWidth, true); Main.Size = UDim2.new(0, Saved.MenuWidth, 0, Main.Size.Y.Offset) end
-    if Saved.MenuHeight then setMenuHeight(Saved.MenuHeight, true); Main.Size = UDim2.new(0, Main.Size.X.Offset, 0, Saved.MenuHeight) end
-    if Saved.Transparency then setTransparency(math.floor(Saved.Transparency*100), true); Main.BackgroundTransparency = Saved.Transparency end
-    if Saved.IconVisible ~= nil then setIconVisible(Saved.IconVisible, true) end
-    if Saved.AccentR then setR(Saved.AccentR, true) end
-    if Saved.AccentG then setG(Saved.AccentG, true) end
-    if Saved.AccentB then setB(Saved.AccentB, true) end
-    updateAccentFromRGB()
-    applyAccent()
-end
-
--- Floating icon
+-- FLOATING ICON (mobile-friendly, bigger)
 local FloatingIcon = Instance.new("ScreenGui")
 FloatingIcon.Name = "Foxude_Icon"
 FloatingIcon.ResetOnSpawn = false
@@ -1337,26 +1072,26 @@ FloatingIcon.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 FloatingIcon.Parent = CoreGui
 
 local IconBtn = Instance.new("TextButton")
-IconBtn.Size = UDim2.new(0, 52, 0, 52)
+IconBtn.Size = UDim2.new(0, 60, 0, 60)
 IconBtn.Position = UDim2.new(0, Config.IconPosX or 30, 0, Config.IconPosY or 300)
 IconBtn.BackgroundColor3 = Color3.fromRGB(14, 14, 20)
 IconBtn.Text = "F"
 IconBtn.TextColor3 = Config.AccentColor
 IconBtn.Font = Enum.Font.GothamBold
-IconBtn.TextSize = 22
+IconBtn.TextSize = 26
 IconBtn.AutoButtonColor = false
 IconBtn.Active = true
 IconBtn.Draggable = false
 IconBtn.BorderSizePixel = 0
-IconBtn.Visible = Config.IconVisible ~= false
 IconBtn.Parent = FloatingIcon
-Instance.new("UICorner", IconBtn).CornerRadius = UDim.new(0, 26)
+Instance.new("UICorner", IconBtn).CornerRadius = UDim.new(0, 30)
 
 local IconStroke = Instance.new("UIStroke", IconBtn)
 IconStroke.Thickness = 2
 IconStroke.Color = Config.AccentColor
 IconStroke.Transparency = 0.3
 
+-- Mobile icon drag (touch-friendly)
 local iconDragging, iconDragStart, iconStartPos, iconWasDragged = false, nil, nil, false
 IconBtn.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
@@ -1372,7 +1107,7 @@ UIS.InputChanged:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseMovement
     or input.UserInputType == Enum.UserInputType.Touch then
         local delta = input.Position - iconDragStart
-        if math.abs(delta.X) > 3 or math.abs(delta.Y) > 3 then iconWasDragged = true end
+        if math.abs(delta.X) > 5 or math.abs(delta.Y) > 5 then iconWasDragged = true end
         IconBtn.Position = UDim2.new(
             iconStartPos.X.Scale, iconStartPos.X.Offset + delta.X,
             iconStartPos.Y.Scale, iconStartPos.Y.Offset + delta.Y
@@ -1385,26 +1120,48 @@ UIS.InputEnded:Connect(function(input)
         if iconDragging and not iconWasDragged then
             Gui.Enabled = not Gui.Enabled
         end
-        if iconDragging then
-            Config.IconPosX = IconBtn.Position.X.Offset
-            Config.IconPosY = IconBtn.Position.Y.Offset
-            saveSettings()
-        end
         iconDragging = false
     end
 end)
 
-UIS.InputBegan:Connect(function(inp, gp)
-    if gp then return end
-    if inp.KeyCode == Config.MenuKey then
-        Gui.Enabled = not Gui.Enabled
-    end
-    if inp.KeyCode == Enum.KeyCode.Q and not Gui.Enabled then
-        API.Grab("Spin")
-    end
-    if inp.KeyCode == Enum.KeyCode.E and not Gui.Enabled then
-        API.Release()
-    end
+-- Mobile quick buttons (fast grab/release)
+local QuickGui = Instance.new("ScreenGui")
+QuickGui.Name = "Foxude_Quick"
+QuickGui.ResetOnSpawn = false
+QuickGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+QuickGui.Parent = CoreGui
+
+local GrabBtn = Instance.new("TextButton")
+GrabBtn.Size = UDim2.new(0, 65, 0, 65)
+GrabBtn.Position = UDim2.new(1, -85, 1, -160)
+GrabBtn.BackgroundColor3 = Config.AccentColor
+GrabBtn.Text = "GRAB"
+GrabBtn.TextColor3 = Color3.fromRGB(10, 10, 14)
+GrabBtn.Font = Enum.Font.GothamBold
+GrabBtn.TextSize = 13
+GrabBtn.BorderSizePixel = 0
+GrabBtn.Parent = QuickGui
+Instance.new("UICorner", GrabBtn).CornerRadius = UDim.new(1, 0)
+
+local ReleaseBtn = Instance.new("TextButton")
+ReleaseBtn.Size = UDim2.new(0, 65, 0, 65)
+ReleaseBtn.Position = UDim2.new(1, -85, 1, -235)
+ReleaseBtn.BackgroundColor3 = Color3.fromRGB(200, 100, 40)
+ReleaseBtn.Text = "DROP"
+ReleaseBtn.TextColor3 = Color3.new(1,1,1)
+ReleaseBtn.Font = Enum.Font.GothamBold
+ReleaseBtn.TextSize = 13
+ReleaseBtn.BorderSizePixel = 0
+ReleaseBtn.Parent = QuickGui
+Instance.new("UICorner", ReleaseBtn).CornerRadius = UDim.new(1, 0)
+
+GrabBtn.MouseButton1Click:Connect(function()
+    API.Grab("Spin")
+    Notify("Foxude", "Grabbed", 1)
+end)
+ReleaseBtn.MouseButton1Click:Connect(function()
+    API.Release()
+    Notify("Foxude", "Released", 1)
 end)
 
 LP.CharacterAdded:Connect(function()
@@ -1413,17 +1170,9 @@ LP.CharacterAdded:Connect(function()
     if Config.FlyEnabled then API.SetFly(true) end
     if Config.ESPEnabled then API.SetESP(true) end
     if Config.NoclipEnabled then API.SetNoclip(true) end
-    if Config.AntiExplosionEnabled then API.SetAntiExplosion(true) end
     clearGrab()
 end)
 
-task.spawn(function()
-    while Gui.Parent do
-        task.wait(5)
-        saveSettings()
-    end
-end)
-
 switchTab("Grab")
-Notify("Foxude v7", "loaded. RC - menu, Q - grab, E - release", 5)
-print("-[(Foxude) v7 ready]-")
+Notify("Foxude MOBILE", "loaded. Tap F - menu", 5)
+print("-[(Foxude) MOBILE ready]-")
