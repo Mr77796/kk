@@ -90,7 +90,9 @@ local function findClosestTarget(maxDist)
     return best
 end
 
--- Логика (Fly, Speed, Anti, Skybox, Shaders)
+-- ============================================
+-- ЛОГИКА (ВОЗВРАЩЕНА)
+-- ============================================
 local function setFly(enabled)
     Config.FlyEnabled = enabled
     local hrp = getHRP() local hum = getHum()
@@ -129,6 +131,156 @@ local function setSpeed(enabled, value)
     if value then Config.SpeedValue = value end
     local hum = getHum()
     if hum then hum.WalkSpeed = enabled and Config.SpeedValue or 16 end
+end
+
+-- ВОТ ОНА, ФУНКЦИЯ СУПЕР-БРОСКА
+local function setStrength(enabled)
+    Config.StrengthEnabled = enabled
+    if State.StrengthConnection then State.StrengthConnection:Disconnect(); State.StrengthConnection = nil end
+    if not enabled then return end
+    State.StrengthConnection = workspace.ChildAdded:Connect(function(model)
+        if model.Name == "GrabParts" then
+            local grabPart = model:FindFirstChild("GrabPart")
+            if not grabPart then return end
+            local weld = grabPart:FindFirstChild("WeldConstraint")
+            if not weld or not weld.Part1 then return end
+            local partToImpulse = weld.Part1
+            local velocityObj = Instance.new("BodyVelocity", partToImpulse)
+            velocityObj.MaxForce = Vector3.new(0, 0, 0); velocityObj.Velocity = Vector3.zero
+            model:GetPropertyChangedSignal("Parent"):Connect(function()
+                if not model.Parent then
+                    if UIS:GetLastInputType() == Enum.UserInputType.MouseButton2 then
+                        velocityObj.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        velocityObj.Velocity = Camera.CFrame.LookVector * Config.ThrowPower
+                    end
+                    Debris:AddItem(velocityObj, 1)
+                end
+            end)
+        end
+    end)
+end
+
+local function setAntiGrab(enabled)
+    Config.AntiGrabEnabled = enabled
+    if State.AntiGrabConnection then State.AntiGrabConnection:Disconnect(); State.AntiGrabConnection = nil end
+    if not enabled then return end
+    State.AntiGrabConnection = RunService.Heartbeat:Connect(function()
+        local character = LP.Character
+        if not character then return end
+        local head = character:FindFirstChild("Head")
+        if not head then return end
+        local partOwner = head:FindFirstChild("PartOwner")
+        if not partOwner then return end
+        pcall(function()
+            if Struggle then Struggle:FireServer() end
+            if StopAllVelocity then StopAllVelocity:FireServer() end
+        end)
+        for _, part in ipairs(character:GetChildren()) do
+            if part:IsA("BasePart") then part.Anchored = true end
+        end
+        task.spawn(function()
+            local held = LP:FindFirstChild("IsHeld")
+            if held then while held.Value do task.wait() end else task.wait(0.5) end
+            local c = LP.Character
+            if c then for _, part in ipairs(c:GetChildren()) do if part:IsA("BasePart") then part.Anchored = false end end end
+        end)
+    end)
+end
+
+local function setAntiKickGrab(enabled)
+    Config.AntiKickGrabEnabled = enabled
+    if State.AntiKickGrabConnection then State.AntiKickGrabConnection:Disconnect(); State.AntiKickGrabConnection = nil end
+    if not enabled then return end
+    State.AntiKickGrabConnection = RunService.Heartbeat:Connect(function()
+        local hrp = getHRP() if not hrp then return end
+        local firePart = hrp:FindFirstChild("FirePlayerPart")
+        if firePart and firePart:FindFirstChild("PartOwner") and firePart.PartOwner.Value ~= LP.Name then
+            pcall(function() if RagdollRemote then RagdollRemote:FireServer(hrp, 0) end end)
+            task.wait(0.1)
+            pcall(function() if Struggle then Struggle:FireServer() end end)
+        end
+    end)
+end
+
+local function setupAntiExplosion(character)
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+    local ragdolled = humanoid:FindFirstChild("Ragdolled")
+    if not ragdolled then return end
+    State.AntiExplosionConnection = ragdolled:GetPropertyChangedSignal("Value"):Connect(function()
+        if not Config.AntiExplosionEnabled then return end
+        for _, part in ipairs(character:GetChildren()) do
+            if part:IsA("BasePart") then part.Anchored = ragdolled.Value end
+        end
+    end)
+end
+
+local function setAntiExplosion(enabled)
+    Config.AntiExplosionEnabled = enabled
+    if State.AntiExplosionConnection then State.AntiExplosionConnection:Disconnect(); State.AntiExplosionConnection = nil end
+    if State.AntiExplosionCharConn then State.AntiExplosionCharConn:Disconnect(); State.AntiExplosionCharConn = nil end
+    if not enabled then return end
+    local char = LP.Character
+    if char then setupAntiExplosion(char) end
+    State.AntiExplosionCharConn = LP.CharacterAdded:Connect(setupAntiExplosion)
+end
+
+local function setSelfDefense(enabled)
+    Config.SelfDefenseEnabled = enabled
+    if State.SelfDefenseCoroutine then State.SelfDefenseCoroutine:Disconnect(); State.SelfDefenseCoroutine = nil end
+    if not enabled then return end
+    State.SelfDefenseCoroutine = RunService.Heartbeat:Connect(function()
+        local character = LP.Character
+        if not character then return end
+        local head = character:FindFirstChild("Head")
+        if not head then return end
+        local partOwner = head:FindFirstChild("PartOwner")
+        if not partOwner then return end
+        local attacker = Players:FindFirstChild(partOwner.Value)
+        if attacker and attacker.Character then
+            pcall(function()
+                if Struggle then Struggle:FireServer() end
+                if SetNetworkOwner and attacker.Character.Head then
+                    SetNetworkOwner:FireServer(attacker.Character.Head, attacker.Character.HumanoidRootPart.CFrame)
+                end
+            end)
+            task.wait(0.1)
+            local target = attacker.Character:FindFirstChild("Torso") or attacker.Character:FindFirstChild("UpperTorso")
+            if target then
+                local velocity = target:FindFirstChild("Monolith_Suspend") or Instance.new("BodyVelocity")
+                velocity.Name = "Monolith_Suspend"; velocity.Parent = target
+                velocity.Velocity = Vector3.new(0, 50, 0); velocity.MaxForce = Vector3.new(0, math.huge, 0)
+                Debris:AddItem(velocity, 2)
+            end
+        end
+    end)
+end
+
+local function grabTarget(target)
+    if not target or not target.hrp then return end
+    if tick() - State.LastGrab < 0.3 then return end
+    State.LastGrab = tick()
+    for _, c in pairs(State.GrabConstraints) do if c then c:Destroy() end end
+    State.GrabConstraints = {}
+    local myHRP = getHRP() if not myHRP then return end
+    State.GrabbedTarget = target
+    if SetNetworkOwner then pcall(function() SetNetworkOwner:FireServer(target.hrp, target.hrp.CFrame) end) end
+    local bv = Instance.new("BodyVelocity", target.hrp)
+    bv.Name = "Monolith_GrabBV"; bv.MaxForce = Vector3.new(9e9, 9e9, 9e9); bv.Velocity = Vector3.zero
+    table.insert(State.GrabConstraints, bv)
+end
+
+local function releaseGrab()
+    if not State.GrabbedTarget then return end
+    local target = State.GrabbedTarget
+    local targetHRP = target.hrp
+    for _, c in pairs(State.GrabConstraints) do if c then c:Destroy() end end
+    State.GrabConstraints = {}; State.GrabbedTarget = nil
+    if not targetHRP or not targetHRP.Parent then return end
+    local bv = Instance.new("BodyVelocity", targetHRP)
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Velocity = Camera.CFrame.LookVector * Config.ThrowPower + Vector3.new(0, Config.ThrowPower * 0.4, 0)
+    Debris:AddItem(bv, 1)
 end
 
 local function FlingAll()
@@ -175,9 +327,6 @@ local function toggleFullbright(enabled)
     end
 end
 
--- ============================================
--- АВТОСОХРАНЕНИЕ (WindUI ConfigManager)
--- ============================================
 local Window = WindUI:CreateWindow({
     Title = T("Title"), Author = "1gor3k", Folder = "MonolithConfig",
     Size = UDim2.fromOffset(560, 520), Theme = "Dark", Resizable = true, SideBarWidth = 160,
@@ -185,7 +334,6 @@ local Window = WindUI:CreateWindow({
     OpenButton = { Title = "M", Enabled = true, Draggable = true, CornerRadius = UDim.new(1, 0), Color = ColorSequence.new(Color3.fromHex("#00FFAA"), Color3.fromHex("#00AAFF")), OnlyMobile = false },
 })
 
--- Создаем конфиг, который будет автосохраняться
 local MyConfig = Window.ConfigManager:CreateConfig("AutoSave", true)
 
 local GrabTab = Window:Tab({ Title = T("Grab"), Icon = "hand" })
@@ -194,7 +342,6 @@ local MoveTab = Window:Tab({ Title = T("Movement"), Icon = "person-running" })
 local VisTab = Window:Tab({ Title = T("Visuals"), Icon = "eye" })
 local MiscTab = Window:Tab({ Title = T("Misc"), Icon = "gear" })
 
--- Grab
 local GrabSec = GrabTab:Section({ Title = T("Grab"), Opened = true })
 GrabSec:Slider({ Title = T("GrabRange"), Flag = "GrabRange", Value = { Min = 10, Max = 100, Default = 30 }, Step = 1, Callback = function(v) Config.GrabRange = v end })
 GrabSec:Slider({ Title = T("ThrowPower"), Flag = "ThrowPower", Value = { Min = 100, Max = 10000, Default = 300 }, Step = 100, Callback = function(v) Config.ThrowPower = v end })
@@ -202,7 +349,6 @@ GrabSec:Button({ Title = T("Grab") .. " (Q)", Icon = "hand", Callback = function
 GrabSec:Button({ Title = "Release (E)", Icon = "arrow-up-from-line", Callback = function() releaseGrab() end })
 GrabTab:Section({ Title = T("Strength") }):Toggle({ Title = T("Strength"), Flag = "StrengthEnabled", Value = false, Callback = setStrength })
 
--- Defense
 local DefProtSec = DefTab:Section({ Title = T("Defense"), Opened = true })
 DefProtSec:Toggle({ Title = T("AntiGrab"), Flag = "AntiGrabEnabled", Value = false, Callback = function(s) setAntiGrab(s) end })
 DefProtSec:Toggle({ Title = T("AntiKick"), Flag = "AntiKickGrabEnabled", Value = false, Callback = function(s) setAntiKickGrab(s) end })
@@ -210,7 +356,6 @@ DefProtSec:Toggle({ Title = T("AntiExplosion"), Flag = "AntiExplosionEnabled", V
 DefProtSec:Toggle({ Title = T("AntiFling"), Flag = "AntiFlingEnabled", Value = false, Callback = function(s) Config.AntiFlingEnabled = s end })
 DefTab:Section({ Title = T("SelfDefense") }):Toggle({ Title = T("SelfDefense"), Flag = "SelfDefenseEnabled", Value = false, Callback = function(s) setSelfDefense(s) end })
 
--- Movement
 local MoveSpeedSec = MoveTab:Section({ Title = T("Speed"), Opened = true })
 MoveSpeedSec:Toggle({ Title = T("Speed"), Flag = "SpeedEnabled", Value = false, Callback = function(s) setSpeed(s, Config.SpeedValue) end })
 MoveSpeedSec:Slider({ Title = T("SpeedVal"), Flag = "SpeedValue", Value = { Min = 16, Max = 150, Default = 40 }, Step = 1, Callback = function(v) Config.SpeedValue = v; if Config.SpeedEnabled then setSpeed(true, v) end end })
@@ -221,7 +366,6 @@ local MoveMiscSec = MoveTab:Section({ Title = T("Misc") })
 MoveMiscSec:Toggle({ Title = T("Noclip"), Flag = "NoclipEnabled", Value = false, Callback = function(s) Config.NoclipEnabled = s end })
 MoveMiscSec:Toggle({ Title = T("InfJump"), Flag = "InfJumpEnabled", Value = false, Callback = function(s) Config.InfJumpEnabled = s end })
 
--- Visuals
 local VisCamSec = VisTab:Section({ Title = T("Visuals"), Opened = true })
 VisCamSec:Toggle({ Title = T("ThirdPerson"), Flag = "ThirdPersonEnabled", Value = false, Callback = function(state)
     Config.ThirdPersonEnabled = state
@@ -238,7 +382,6 @@ VisSkySec:Toggle({ Title = T("Shaders"), Flag = "ShadersEnabled", Value = false,
 VisTab:Section({ Title = T("ESP") }):Toggle({ Title = T("ESP"), Flag = "ESPEnabled", Value = false, Callback = function(s) Config.ESPEnabled = s; if s then _G.RefreshESP() else _G.ClearESP() end end })
 VisTab:Section({ Title = T("Fullbright") }):Toggle({ Title = T("Fullbright"), Flag = "FullbrightEnabled", Value = false, Callback = toggleFullbright })
 
--- Misc
 local MiscActionsSec = MiscTab:Section({ Title = T("Misc"), Opened = true })
 MiscActionsSec:Button({ Title = T("Rejoin"), Icon = "rotate-cw", Callback = function() TeleportService:Teleport(game.PlaceId, LP) end })
 MiscActionsSec:Button({ Title = T("ServerHop"), Icon = "shuffle", Callback = function()
@@ -278,7 +421,6 @@ MiscSettingsSec:Button({
     end 
 })
 
--- ESP
 local espFolder = Instance.new("Folder", game:GetService("CoreGui"))
 espFolder.Name = "Monolith_ESP"
 _G.ClearESP = function() espFolder:ClearAllChildren() end
