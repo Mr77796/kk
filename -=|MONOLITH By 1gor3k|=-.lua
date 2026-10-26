@@ -353,6 +353,11 @@ local function toggleFullbright(enabled)
     end
 end
 
+local function isMyPart(part)
+    local char = LP.Character
+    return char ~= nil and part:IsDescendantOf(char)
+end
+
 local function stopTornado()
     Config.TornadoActive = false
     for _, t in ipairs(State.TornadoTasks) do pcall(function() task.cancel(t) end) end
@@ -361,11 +366,22 @@ local function stopTornado()
         if obj.Name == "FoxTornadoBV" then obj:Destroy() end 
         if obj.Name == "FoxTornadoAntiGrav" then obj:Destroy() end
     end
+    local hum = getHum()
+    if hum then hum.PlatformStand = false end
+    local hrp = getHRP()
+    if hrp then
+        hrp.Anchored = false
+        if hrp:FindFirstChild("FoxTornadoBV") then hrp.FoxTornadoBV:Destroy() end
+        if hrp:FindFirstChild("FoxTornadoAntiGrav") then hrp.FoxTornadoAntiGrav:Destroy() end
+    end
 end
 
 local function startTornado()
     if Config.TornadoActive then return end
     Config.TornadoActive = true
+
+    local selfHum = getHum()
+    if selfHum then selfHum.PlatformStand = true end
 
     task.spawn(function()
         while Config.TornadoActive do
@@ -378,13 +394,15 @@ local function startTornado()
                 if Config.TornadoMode == "Все" or Config.TornadoMode == "Только пропы" then
                     for _, obj in ipairs(workspace:GetDescendants()) do
                         if obj:IsA("BasePart") and not obj.Anchored then
-                            local isChar = false
-                            for _, p in ipairs(Players:GetPlayers()) do 
-                                if p.Character and obj:IsDescendantOf(p.Character) then isChar = true break end 
-                            end
-                            if not isChar and obj ~= hrp and not obj:FindFirstChild("FoxTornadoBV") then
-                                if (obj.Position - hrp.Position).Magnitude <= Config.TornadoRange then
-                                    table.insert(targets, obj)
+                            if obj ~= hrp and not isMyPart(obj) then
+                                local isChar = false
+                                for _, p in ipairs(Players:GetPlayers()) do 
+                                    if p.Character and obj:IsDescendantOf(p.Character) then isChar = true break end 
+                                end
+                                if not isChar and not obj:FindFirstChild("FoxTornadoBV") then
+                                    if (obj.Position - hrp.Position).Magnitude <= Config.TornadoRange then
+                                        table.insert(targets, obj)
+                                    end
                                 end
                             end
                         end
@@ -395,7 +413,8 @@ local function startTornado()
                     for _, p in ipairs(Players:GetPlayers()) do
                         if p ~= LP and p.Character then
                             local hrp2 = p.Character:FindFirstChild("HumanoidRootPart")
-                            if hrp2 and not hrp2:FindFirstChild("FoxTornadoBV") then 
+                            if hrp2 and not hrp2:FindFirstChild("FoxTornadoBV") 
+                               and hrp2 ~= hrp and not isMyPart(hrp2) then 
                                 if (hrp2.Position - hrp.Position).Magnitude <= Config.TornadoRange then
                                     if SetNetworkOwner then 
                                         pcall(function() SetNetworkOwner:FireServer(hrp2, hrp2.CFrame) end) 
@@ -408,31 +427,37 @@ local function startTornado()
                 end
 
                 for _, part in ipairs(targets) do
-                    local mass = part:FindFirstChild("FoxTornadoAntiGrav") or Instance.new("BodyForce", part)
-                    mass.Name = "FoxTornadoAntiGrav"
-                    mass.Force = Vector3.new(0, part:GetMass() * workspace.Gravity, 0)
+                    if part ~= hrp and not isMyPart(part) and part.Parent then
+                        local mass = part:FindFirstChild("FoxTornadoAntiGrav") or Instance.new("BodyForce", part)
+                        mass.Name = "FoxTornadoAntiGrav"
+                        mass.Force = Vector3.new(0, part:GetMass() * workspace.Gravity, 0)
 
-                    local bv = Instance.new("BodyVelocity", part)
-                    bv.Name = "FoxTornadoBV"
-                    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                    local offset = math.random() * math.pi * 2
-                    
-                    local th = task.spawn(function()
-                        while Config.TornadoActive and part.Parent do
-                            if not hrp.Parent then break end
-                            local a = (tick() * Config.TornadoSpeed) + offset
-                            local pos = hrp.Position + Vector3.new(
-                                math.cos(a) * Config.TornadoRadius, 
-                                math.random(3, 15), 
-                                math.sin(a) * Config.TornadoRadius
-                            )
-                            bv.Velocity = (pos - part.Position).Unit * 80 
-                            task.wait()
-                        end
-                        if bv then bv:Destroy() end
-                        if mass then mass:Destroy() end
-                    end)
-                    table.insert(State.TornadoTasks, th)
+                        local bv = part:FindFirstChild("FoxTornadoBV") or Instance.new("BodyVelocity", part)
+                        bv.Name = "FoxTornadoBV"
+                        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        local offset = math.random() * math.pi * 2
+                        
+                        local th = task.spawn(function()
+                            while Config.TornadoActive and part.Parent do
+                                if not hrp.Parent then break end
+                                if isMyPart(part) then break end
+                                local a = (tick() * Config.TornadoSpeed) + offset
+                                local pos = hrp.Position + Vector3.new(
+                                    math.cos(a) * Config.TornadoRadius, 
+                                    math.random(3, 15), 
+                                    math.sin(a) * Config.TornadoRadius
+                                )
+                                local delta = pos - part.Position
+                                if delta.Magnitude > 0.01 then
+                                    bv.Velocity = delta.Unit * 80 
+                                end
+                                task.wait()
+                            end
+                            if bv then bv:Destroy() end
+                            if mass then mass:Destroy() end
+                        end)
+                        table.insert(State.TornadoTasks, th)
+                    end
                 end
             end
             task.wait(0.2)
