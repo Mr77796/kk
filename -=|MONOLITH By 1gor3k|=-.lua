@@ -27,28 +27,11 @@ pcall(function()
     end
 end)
 
--- Пресеты скайбоксов (ID взяты из открытых источников)
 local SkyPresets = {
-    ["Default"] = {
-        Up = "rbxassetid://15983964246", Dn = "rbxassetid://15983966825",
-        Ft = "rbxassetid://5260817288", Bk = "rbxassetid://15983968922",
-        Lf = "rbxassetid://15983967420", Rt = "rbxassetid://15983966246"
-    },
-    ["Vaporwave"] = {
-        Up = "rbxassetid://14164405298", Dn = "rbxassetid://14164386126",
-        Ft = "rbxassetid://14164389230", Bk = "rbxassetid://14164368678",
-        Lf = "rbxassetid://14164398493", Rt = "rbxassetid://14164402782"
-    },
-    ["Galaxy"] = {
-        Up = "rbxassetid://14543371676", Dn = "rbxassetid://14543358958",
-        Ft = "rbxassetid://14543257810", Bk = "rbxassetid://14543264135",
-        Lf = "rbxassetid://14543275895", Rt = "rbxassetid://14543280890"
-    },
-    ["Storm"] = {
-        Up = "rbxassetid://1618913654", Dn = "rbxassetid://1618913943",
-        Ft = "rbxassetid://1618913244", Bk = "rbxassetid://1618912481",
-        Lf = "rbxassetid://1618912849", Rt = "rbxassetid://1618911568"
-    }
+    ["Default"] = {Up = "rbxassetid://15983964246", Dn = "rbxassetid://15983966825", Ft = "rbxassetid://5260817288", Bk = "rbxassetid://15983968922", Lf = "rbxassetid://15983967420", Rt = "rbxassetid://15983966246"},
+    ["Vaporwave"] = {Up = "rbxassetid://14164405298", Dn = "rbxassetid://14164386126", Ft = "rbxassetid://14164389230", Bk = "rbxassetid://14164368678", Lf = "rbxassetid://14164398493", Rt = "rbxassetid://14164402782"},
+    ["Galaxy"] = {Up = "rbxassetid://14543371676", Dn = "rbxassetid://14543358958", Ft = "rbxassetid://14543257810", Bk = "rbxassetid://14543264135", Lf = "rbxassetid://14543275895", Rt = "rbxassetid://14543280890"},
+    ["Storm"] = {Up = "rbxassetid://1618913654", Dn = "rbxassetid://1618913943", Ft = "rbxassetid://1618913244", Bk = "rbxassetid://1618912481", Lf = "rbxassetid://1618912849", Rt = "rbxassetid://1618911568"}
 }
 
 local Config = {
@@ -64,67 +47,32 @@ local Config = {
     ThirdPersonEnabled = false,
     AntiAFKEnabled = false,
     MenuKey = Enum.KeyCode.RightControl,
-    Language = "RU", -- RU / EN
+    Language = "RU",
 }
 
 local State = {
-    GrabbedTarget = nil,
-    GrabConstraints = {},
-    StrengthConnection = nil,
-    AntiGrabConnection = nil,
-    AntiKickGrabConnection = nil,
-    AntiExplosionConnection = nil,
-    AntiExplosionCharConn = nil,
-    SelfDefenseCoroutine = nil,
-    LastGrab = 0,
-    oldCameraOffset = nil,
-    IsListeningForBind = false,
-    AFKConnection = nil,
-    SkyObject = nil,
-    OriginalLighting = {},
+    GrabbedTarget = nil, GrabConstraints = {},
+    StrengthConnection = nil, AntiGrabConnection = nil, AntiKickGrabConnection = nil,
+    AntiExplosionConnection = nil, AntiExplosionCharConn = nil, SelfDefenseCoroutine = nil,
+    LastGrab = 0, oldCameraOffset = nil, IsListeningForBind = false,
+    AFKConnection = nil, SkyObject = nil, Shaders = nil,
+    OriginalBrightness = Lighting.Brightness,
+    OriginalAmbient = Lighting.Ambient,
+    OriginalOutdoorAmbient = Lighting.OutdoorAmbient,
+    OriginalFogEnd = Lighting.FogEnd,
 }
 
--- Локализация (простая таблица)
 local Lang = {
-    RU = {
-        Title = "МОНОЛИТ",
-        Grab = "Захват", Defense = "Защита", Movement = "Движение", Visuals = "Визуал", Misc = "Разное",
-        Speed = "Скорость", Fly = "Полет", Noclip = "Ноклип", InfJump = "Беск. прыжок",
-        ESP = "ESP", Fullbright = "Полная яркость", ThirdPerson = "Вид от 3-го лица",
-        AntiGrab = "Анти-Захват", AntiKick = "Анти-Кик", AntiExplosion = "Анти-Взрыв", AntiFling = "Анти-Флинг",
-        SelfDefense = "Самооборона", Strength = "Супер-бросок",
-        GrabRange = "Дистанция захвата", ThrowPower = "Сила броска", FlySpeed = "Скорость полета", SpeedVal = "Скорость",
-        Rejoin = "Перезайти", ServerHop = "Сменить сервер", AntiAFK = "Анти-АФК",
-        SetKey = "Назначить клавишу", Skybox = "Скайбокс", Shaders = "Шейдеры",
-        FlingAll = "Швырнуть всех", Language = "Язык"
-    },
-    EN = {
-        Title = "MONOLITH",
-        Grab = "Grab", Defense = "Defense", Movement = "Movement", Visuals = "Visuals", Misc = "Misc",
-        Speed = "Speed", Fly = "Fly", Noclip = "Noclip", InfJump = "Inf Jump",
-        ESP = "ESP", Fullbright = "Fullbright", ThirdPerson = "3rd Person",
-        AntiGrab = "Anti-Grab", AntiKick = "Anti-Kick", AntiExplosion = "Anti-Explosion", AntiFling = "Anti-Fling",
-        SelfDefense = "Self Defense", Strength = "Strength",
-        GrabRange = "Grab Range", ThrowPower = "Throw Power", FlySpeed = "Fly Speed", SpeedVal = "Speed",
-        Rejoin = "Rejoin", ServerHop = "Server Hop", AntiAFK = "Anti-AFK",
-        SetKey = "Set Menu Key", Skybox = "Skybox", Shaders = "Shaders",
-        FlingAll = "Fling All", Language = "Language"
-    }
+    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык" },
+    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language" },
+    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова" }
 }
 
-local function T(key)
-    return Lang[Config.Language][key] or key
-end
-
+local function T(key) return Lang[Config.Language][key] or key end
 local function getChar() local c = LP.Character if not c or not c.Parent then return nil end return c end
 local function getHRP() local c = getChar() if not c then return nil end return c:FindFirstChild("HumanoidRootPart") end
 local function getHum() local c = getChar() if not c then return nil end return c:FindFirstChildOfClass("Humanoid") end
-local function isAlive(p)
-    if not p then return false end
-    local c = p.Character if not c or not c.Parent then return false end
-    local h = c:FindFirstChildOfClass("Humanoid")
-    return h and h.Health > 0
-end
+local function isAlive(p) if not p then return false end local c = p.Character if not c or not c.Parent then return false end local h = c:FindFirstChildOfClass("Humanoid") return h and h.Health > 0 end
 
 local function findClosestTarget(maxDist)
     maxDist = maxDist or math.huge
@@ -135,19 +83,14 @@ local function findClosestTarget(maxDist)
             local hrp = p.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
                 local d = (hrp.Position - myHRP.Position).Magnitude
-                if d < bestDist then 
-                    bestDist = d
-                    best = {hrp = hrp, hum = p.Character:FindFirstChildOfClass("Humanoid"), player = p, char = p.Character} 
-                end
+                if d < bestDist then bestDist = d; best = {hrp = hrp, hum = p.Character:FindFirstChildOfClass("Humanoid"), player = p, char = p.Character} end
             end
         end
     end
     return best
 end
 
--- ============================================
--- ЛОГИКА (Fly, Speed, Anti и т.д.)
--- ============================================
+-- Логика (Fly, Speed, Anti, Skybox, Shaders)
 local function setFly(enabled)
     Config.FlyEnabled = enabled
     local hrp = getHRP() local hum = getHum()
@@ -188,84 +131,62 @@ local function setSpeed(enabled, value)
     if hum then hum.WalkSpeed = enabled and Config.SpeedValue or 16 end
 end
 
--- Fling All (Швырялка)
 local function FlingAll()
-    local force = 500
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LP and p.Character then
             local hrp = p.Character:FindFirstChild("HumanoidRootPart")
             if hrp then
-                local bv = Instance.new("BodyVelocity")
-                bv.Velocity = Vector3.new(math.random(-force, force), force, math.random(-force, force))
-                bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                bv.Parent = hrp
+                local bv = Instance.new("BodyVelocity"); bv.Velocity = Vector3.new(math.random(-500, 500), 500, math.random(-500, 500)); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Parent = hrp
                 Debris:AddItem(bv, 0.5)
             end
         end
     end
-    WindUI:Notify({Title="MONOLITH", Content="Все отправлены в полет!", Icon="wind"})
+    WindUI:Notify({Title="MONOLITH", Content="Fling All Executed!", Icon="wind"})
 end
 
--- Скайбокс
 local function setSkybox(presetName)
     if State.SkyObject then State.SkyObject:Destroy() end
     local preset = SkyPresets[presetName]
     if not preset then return end
-    
     local sky = Instance.new("Sky")
-    sky.SkyboxUp = preset.Up
-    sky.SkyboxDn = preset.Dn
-    sky.SkyboxFt = preset.Ft
-    sky.SkyboxBk = preset.Bk
-    sky.SkyboxLf = preset.Lf
-    sky.SkyboxRt = preset.Rt
+    sky.SkyboxUp = preset.Up; sky.SkyboxDn = preset.Dn; sky.SkyboxFt = preset.Ft; sky.SkyboxBk = preset.Bk; sky.SkyboxLf = preset.Lf; sky.SkyboxRt = preset.Rt
     sky.Parent = Lighting
     State.SkyObject = sky
 end
 
--- Шейдеры (простая обработка)
 local function toggleShaders(enabled)
     if enabled then
         if not State.Shaders then
             State.Shaders = {}
-            local bloom = Instance.new("BloomEffect", Lighting)
-            bloom.Intensity = 0.5
-            bloom.Size = 24
-            table.insert(State.Shaders, bloom)
-            
-            local color = Instance.new("ColorCorrectionEffect", Lighting)
-            color.Saturation = 0.2
-            color.Contrast = 0.1
-            table.insert(State.Shaders, color)
+            local bloom = Instance.new("BloomEffect", Lighting); bloom.Intensity = 0.5; bloom.Size = 24; table.insert(State.Shaders, bloom)
+            local color = Instance.new("ColorCorrectionEffect", Lighting); color.Saturation = 0.2; color.Contrast = 0.1; table.insert(State.Shaders, color)
         end
     else
-        if State.Shaders then
-            for _, v in ipairs(State.Shaders) do v:Destroy() end
-            State.Shaders = nil
-        end
+        if State.Shaders then for _, v in ipairs(State.Shaders) do v:Destroy() end; State.Shaders = nil end
+    end
+end
+
+local function toggleFullbright(enabled)
+    Config.FullbrightEnabled = enabled
+    if enabled then
+        Lighting.Brightness = 3; Lighting.Ambient = Color3.new(1, 1, 1); Lighting.OutdoorAmbient = Color3.new(1, 1, 1); Lighting.FogEnd = 1e6; Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = State.OriginalBrightness; Lighting.Ambient = State.OriginalAmbient; Lighting.OutdoorAmbient = State.OriginalOutdoorAmbient; Lighting.FogEnd = State.OriginalFogEnd; Lighting.GlobalShadows = true
     end
 end
 
 -- ============================================
--- UI (WindUI)
+-- АВТОСОХРАНЕНИЕ (WindUI ConfigManager)
 -- ============================================
 local Window = WindUI:CreateWindow({
-    Title = T("Title"),
-    Author = "1gor3k",
-    Folder = "MonolithConfig",
-    Size = UDim2.fromOffset(560, 520),
-    Theme = "Dark",
-    Resizable = true,
-    SideBarWidth = 160,
-    HideSearchBar = false,
-    NewElements = true,
-    ScrollBarEnabled = true,
-    Acrylic = false,
-    OpenButton = {
-        Title = "M", Enabled = true, Draggable = true, CornerRadius = UDim.new(1, 0),
-        Color = ColorSequence.new(Color3.fromHex("#00FFAA"), Color3.fromHex("#00AAFF")), OnlyMobile = false,
-    },
+    Title = T("Title"), Author = "1gor3k", Folder = "MonolithConfig",
+    Size = UDim2.fromOffset(560, 520), Theme = "Dark", Resizable = true, SideBarWidth = 160,
+    HideSearchBar = false, NewElements = true, ScrollBarEnabled = true, Acrylic = false,
+    OpenButton = { Title = "M", Enabled = true, Draggable = true, CornerRadius = UDim.new(1, 0), Color = ColorSequence.new(Color3.fromHex("#00FFAA"), Color3.fromHex("#00AAFF")), OnlyMobile = false },
 })
+
+-- Создаем конфиг, который будет автосохраняться
+local MyConfig = Window.ConfigManager:CreateConfig("AutoSave", true)
 
 local GrabTab = Window:Tab({ Title = T("Grab"), Icon = "hand" })
 local DefTab = Window:Tab({ Title = T("Defense"), Icon = "shield" })
@@ -275,34 +196,34 @@ local MiscTab = Window:Tab({ Title = T("Misc"), Icon = "gear" })
 
 -- Grab
 local GrabSec = GrabTab:Section({ Title = T("Grab"), Opened = true })
-GrabSec:Slider({ Title = T("GrabRange"), Value = { Min = 10, Max = 100, Default = 30 }, Step = 1, Callback = function(v) Config.GrabRange = v end })
-GrabSec:Slider({ Title = T("ThrowPower"), Value = { Min = 100, Max = 10000, Default = 300 }, Step = 100, Callback = function(v) Config.ThrowPower = v end })
-GrabSec:Button({ Title = T("Grab") .. " (Q)", Icon = "hand", Callback = function() local t = findClosestTarget(Config.GrabRange) if t then grabTarget(t) WindUI:Notify({Title="MONOLITH", Content="Grabbed!", Icon="check"}) end end })
-GrabSec:Button({ Title = "Release (E)", Icon = "arrow-up-from-line", Callback = function() releaseGrab() WindUI:Notify({Title="MONOLITH", Content="Released!", Icon="arrow-up"}) end })
-GrabTab:Section({ Title = T("Strength") }):Toggle({ Title = T("Strength"), Value = false, Callback = setStrength })
+GrabSec:Slider({ Title = T("GrabRange"), Flag = "GrabRange", Value = { Min = 10, Max = 100, Default = 30 }, Step = 1, Callback = function(v) Config.GrabRange = v end })
+GrabSec:Slider({ Title = T("ThrowPower"), Flag = "ThrowPower", Value = { Min = 100, Max = 10000, Default = 300 }, Step = 100, Callback = function(v) Config.ThrowPower = v end })
+GrabSec:Button({ Title = T("Grab") .. " (Q)", Icon = "hand", Callback = function() local t = findClosestTarget(Config.GrabRange) if t then grabTarget(t) end end })
+GrabSec:Button({ Title = "Release (E)", Icon = "arrow-up-from-line", Callback = function() releaseGrab() end })
+GrabTab:Section({ Title = T("Strength") }):Toggle({ Title = T("Strength"), Flag = "StrengthEnabled", Value = false, Callback = setStrength })
 
 -- Defense
 local DefProtSec = DefTab:Section({ Title = T("Defense"), Opened = true })
-DefProtSec:Toggle({ Title = T("AntiGrab"), Value = false, Callback = function(s) setAntiGrab(s) end })
-DefProtSec:Toggle({ Title = T("AntiKick"), Value = false, Callback = function(s) setAntiKickGrab(s) end })
-DefProtSec:Toggle({ Title = T("AntiExplosion"), Value = false, Callback = setAntiExplosion })
-DefProtSec:Toggle({ Title = T("AntiFling"), Value = false, Callback = function(s) Config.AntiFlingEnabled = s end })
-DefTab:Section({ Title = T("SelfDefense") }):Toggle({ Title = T("SelfDefense"), Value = false, Callback = function(s) setSelfDefense(s) end })
+DefProtSec:Toggle({ Title = T("AntiGrab"), Flag = "AntiGrabEnabled", Value = false, Callback = function(s) setAntiGrab(s) end })
+DefProtSec:Toggle({ Title = T("AntiKick"), Flag = "AntiKickGrabEnabled", Value = false, Callback = function(s) setAntiKickGrab(s) end })
+DefProtSec:Toggle({ Title = T("AntiExplosion"), Flag = "AntiExplosionEnabled", Value = false, Callback = setAntiExplosion })
+DefProtSec:Toggle({ Title = T("AntiFling"), Flag = "AntiFlingEnabled", Value = false, Callback = function(s) Config.AntiFlingEnabled = s end })
+DefTab:Section({ Title = T("SelfDefense") }):Toggle({ Title = T("SelfDefense"), Flag = "SelfDefenseEnabled", Value = false, Callback = function(s) setSelfDefense(s) end })
 
 -- Movement
 local MoveSpeedSec = MoveTab:Section({ Title = T("Speed"), Opened = true })
-MoveSpeedSec:Toggle({ Title = T("Speed"), Value = false, Callback = function(s) setSpeed(s, Config.SpeedValue) end })
-MoveSpeedSec:Slider({ Title = T("SpeedVal"), Value = { Min = 16, Max = 150, Default = 40 }, Step = 1, Callback = function(v) Config.SpeedValue = v; if Config.SpeedEnabled then setSpeed(true, v) end end })
+MoveSpeedSec:Toggle({ Title = T("Speed"), Flag = "SpeedEnabled", Value = false, Callback = function(s) setSpeed(s, Config.SpeedValue) end })
+MoveSpeedSec:Slider({ Title = T("SpeedVal"), Flag = "SpeedValue", Value = { Min = 16, Max = 150, Default = 40 }, Step = 1, Callback = function(v) Config.SpeedValue = v; if Config.SpeedEnabled then setSpeed(true, v) end end })
 local MoveFlySec = MoveTab:Section({ Title = T("Fly") })
-MoveFlySec:Toggle({ Title = T("Fly"), Value = false, Callback = function(s) setFly(s) end })
-MoveFlySec:Slider({ Title = T("FlySpeed"), Value = { Min = 10, Max = 200, Default = 60 }, Step = 1, Callback = function(v) Config.FlySpeed = v end })
+MoveFlySec:Toggle({ Title = T("Fly"), Flag = "FlyEnabled", Value = false, Callback = function(s) setFly(s) end })
+MoveFlySec:Slider({ Title = T("FlySpeed"), Flag = "FlySpeed", Value = { Min = 10, Max = 200, Default = 60 }, Step = 1, Callback = function(v) Config.FlySpeed = v end })
 local MoveMiscSec = MoveTab:Section({ Title = T("Misc") })
-MoveMiscSec:Toggle({ Title = T("Noclip"), Value = false, Callback = function(s) Config.NoclipEnabled = s end })
-MoveMiscSec:Toggle({ Title = T("InfJump"), Value = false, Callback = function(s) Config.InfJumpEnabled = s end })
+MoveMiscSec:Toggle({ Title = T("Noclip"), Flag = "NoclipEnabled", Value = false, Callback = function(s) Config.NoclipEnabled = s end })
+MoveMiscSec:Toggle({ Title = T("InfJump"), Flag = "InfJumpEnabled", Value = false, Callback = function(s) Config.InfJumpEnabled = s end })
 
--- Visuals (Скайбокс и Шейдеры)
+-- Visuals
 local VisCamSec = VisTab:Section({ Title = T("Visuals"), Opened = true })
-VisCamSec:Toggle({ Title = T("ThirdPerson"), Value = false, Callback = function(state) -- (логика 3-го лица как раньше) 
+VisCamSec:Toggle({ Title = T("ThirdPerson"), Flag = "ThirdPersonEnabled", Value = false, Callback = function(state)
     Config.ThirdPersonEnabled = state
     if state then
         if not State.oldCameraOffset then State.oldCameraOffset = { Max = LP.CameraMaxZoomDistance, Min = LP.CameraMinZoomDistance, Mode = LP.CameraMode } end
@@ -311,22 +232,16 @@ VisCamSec:Toggle({ Title = T("ThirdPerson"), Value = false, Callback = function(
         if State.oldCameraOffset then LP.CameraMaxZoomDistance = State.oldCameraOffset.Max; LP.CameraMinZoomDistance = State.oldCameraOffset.Min; LP.CameraMode = State.oldCameraOffset.Mode; State.oldCameraOffset = nil end
     end
 end })
-
 local VisSkySec = VisTab:Section({ Title = T("Skybox") })
-VisSkySec:Dropdown({ Title = T("Skybox"), Values = {"Default", "Vaporwave", "Galaxy", "Storm"}, Value = "Default", Callback = function(v) setSkybox(v) end })
-VisSkySec:Toggle({ Title = T("Shaders"), Value = false, Callback = function(s) toggleShaders(s) end })
+VisSkySec:Dropdown({ Title = T("Skybox"), Flag = "Skybox", Values = {"Default", "Vaporwave", "Galaxy", "Storm"}, Value = "Default", Callback = function(v) setSkybox(v) end })
+VisSkySec:Toggle({ Title = T("Shaders"), Flag = "ShadersEnabled", Value = false, Callback = function(s) toggleShaders(s) end })
+VisTab:Section({ Title = T("ESP") }):Toggle({ Title = T("ESP"), Flag = "ESPEnabled", Value = false, Callback = function(s) Config.ESPEnabled = s; if s then _G.RefreshESP() else _G.ClearESP() end end })
+VisTab:Section({ Title = T("Fullbright") }):Toggle({ Title = T("Fullbright"), Flag = "FullbrightEnabled", Value = false, Callback = toggleFullbright })
 
-VisTab:Section({ Title = T("ESP") }):Toggle({ Title = T("ESP"), Value = false, Callback = function(s) Config.ESPEnabled = s; if s then _G.RefreshESP() else _G.ClearESP() end end })
-local VisWorldSec = VisTab:Section({ Title = T("Fullbright") })
-VisWorldSec:Toggle({ Title = T("Fullbright"), Value = false, Callback = function(s) -- (логика Fullbright) 
-    if s then Lighting.Brightness = 2; Lighting.Ambient = Color3.new(1,1,1); Lighting.OutdoorAmbient = Color3.new(1,1,1); Lighting.FogEnd = 1e6
-    else Lighting.Brightness = 1; Lighting.Ambient = Color3.fromRGB(128,128,128); Lighting.OutdoorAmbient = Color3.fromRGB(128,128,128); Lighting.FogEnd = 1000 end
-end })
-
--- Misc (Fling All, Язык)
+-- Misc
 local MiscActionsSec = MiscTab:Section({ Title = T("Misc"), Opened = true })
 MiscActionsSec:Button({ Title = T("Rejoin"), Icon = "rotate-cw", Callback = function() TeleportService:Teleport(game.PlaceId, LP) end })
-MiscActionsSec:Button({ Title = T("ServerHop"), Icon = "shuffle", Callback = function() -- (логика ServerHop) 
+MiscActionsSec:Button({ Title = T("ServerHop"), Icon = "shuffle", Callback = function()
     pcall(function()
         local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
         local res = game:HttpGet(url)
@@ -336,34 +251,38 @@ MiscActionsSec:Button({ Title = T("ServerHop"), Icon = "shuffle", Callback = fun
     end)
 end })
 MiscActionsSec:Button({ Title = T("FlingAll"), Icon = "wind", Callback = FlingAll })
-
-MiscTab:Section({ Title = T("AntiAFK") }):Toggle({ Title = T("AntiAFK"), Value = false, Callback = function(s)
+MiscTab:Section({ Title = T("AntiAFK") }):Toggle({ Title = T("AntiAFK"), Flag = "AntiAFKEnabled", Value = false, Callback = function(s)
     Config.AntiAFKEnabled = s
     if s then State.AFKConnection = LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
     else if State.AFKConnection then State.AFKConnection:Disconnect(); State.AFKConnection = nil end end
 end })
 
-local bindBtn = MiscTab:Section({ Title = T("SetKey") }):Button({ Title = T("SetKey"), Icon = "keyboard", Callback = function() State.IsListeningForBind = true; WindUI:Notify({Title="Keybind", Content="Press any key...", Icon="info", Duration=3}) end })
+local MiscSettingsSec = MiscTab:Section({ Title = "Settings" })
+MiscSettingsSec:Dropdown({
+    Title = T("Language"), Flag = "Language",
+    Values = {"Русский", "English", "Українська"}, Value = "Русский",
+    Callback = function(v)
+        if v == "Русский" then Config.Language = "RU"
+        elseif v == "English" then Config.Language = "EN"
+        elseif v == "Українська" then Config.Language = "UA" end
+        WindUI:Notify({Title="MONOLITH", Content="Перезапусти скрипт для применения языка.", Icon="info", Duration=5})
+    end,
+})
 
--- Language Toggle (пересоздаем окно — костыль, но работает)
-MiscTab:Section({ Title = T("Language") }):Button({ Title = "Русский", Icon = "flag", Callback = function() 
-    if Config.Language ~= "RU" then
-        Config.Language = "RU"
-        WindUI:Notify({Title="MONOLITH", Content="Перезапусти скрипт для смены языка на Русский.", Icon="info", Duration=5})
-    end
-end })
-MiscTab:Button({ Title = "English", Icon = "flag", Callback = function() 
-    if Config.Language ~= "EN" then
-        Config.Language = "EN"
-        WindUI:Notify({Title="MONOLITH", Content="Restart script to apply English language.", Icon="info", Duration=5})
-    end
-end })
+MiscSettingsSec:Button({ 
+    Title = T("SetKey") .. ": " .. Config.MenuKey.Name, Icon = "keyboard",
+    Callback = function() 
+        if State.IsListeningForBind then return end
+        State.IsListeningForBind = true
+        WindUI:Notify({Title="Keybind", Content="Нажми на любую клавишу...", Icon="info", Duration=3})
+    end 
+})
 
--- (ESP и остальные циклы как в прошлой версии, без изменений)
+-- ESP
 local espFolder = Instance.new("Folder", game:GetService("CoreGui"))
 espFolder.Name = "Monolith_ESP"
 _G.ClearESP = function() espFolder:ClearAllChildren() end
-local function buildESP(p) -- (логика ESP как раньше) 
+local function buildESP(p)
     if p == LP or not p.Character then return end
     local hrp = p.Character:FindFirstChild("HumanoidRootPart") if not hrp then return end
     local bb = Instance.new("BillboardGui", espFolder); bb.Size = UDim2.new(0, 150, 0, 40); bb.StudsOffset = Vector3.new(0, 2.5, 0); bb.AlwaysOnTop = true; bb.Adornee = hrp; bb:SetAttribute("Owner", p.UserId)
@@ -375,7 +294,7 @@ _G.RefreshESP = function() espFolder:ClearAllChildren(); for _, p in ipairs(Play
 RunService.Heartbeat:Connect(function()
     if Config.SpeedEnabled then local hum = getHum(); if hum and hum.WalkSpeed ~= Config.SpeedValue then hum.WalkSpeed = Config.SpeedValue end end
     if Config.AntiFlingEnabled then local char = getChar(); if char then local hrp = char:FindFirstChild("HumanoidRootPart"); if hrp and hrp.Velocity.Magnitude > 500 then hrp.Velocity = Vector3.zero end end end
-    if Config.ESPEnabled then -- (обновление ESP) 
+    if Config.ESPEnabled then
         local myHRP = getHRP()
         for _, v in ipairs(espFolder:GetChildren()) do
             local uid = v:GetAttribute("Owner"); if not uid then continue end
@@ -387,4 +306,34 @@ RunService.Heartbeat:Connect(function()
     end
 end)
 
--- (Остальные функции и бинды без изменений)
+RunService.Stepped:Connect(function()
+    if Config.NoclipEnabled then local char = getChar(); if char then for _, p in ipairs(char:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end end end
+end)
+
+UIS.JumpRequest:Connect(function()
+    if Config.InfJumpEnabled then local hum = getHum(); if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end end
+end)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if State.IsListeningForBind then
+        if input.UserInputType == Enum.UserInputType.Keyboard then
+            Config.MenuKey = input.KeyCode
+            State.IsListeningForBind = false
+            WindUI:Notify({Title="Keybind", Content="Клавиша меню изменена на: " .. Config.MenuKey.Name, Icon="check"})
+        end
+        return
+    end
+    if input.KeyCode == Config.MenuKey then Window:Toggle() end
+    if input.KeyCode == Enum.KeyCode.Q then local t = findClosestTarget(Config.GrabRange) if t then grabTarget(t) end
+    elseif input.KeyCode == Enum.KeyCode.E then releaseGrab() end
+end)
+
+LP.CharacterAdded:Connect(function()
+    task.wait(0.8)
+    if Config.SpeedEnabled then setSpeed(true, Config.SpeedValue) end
+    if Config.FlyEnabled then setFly(true) end
+    if Config.ESPEnabled then _G.RefreshESP() end
+    if Config.NoclipEnabled then Config.NoclipEnabled = true end
+    if Config.AntiExplosionEnabled then setAntiExplosion(true) end
+end)
