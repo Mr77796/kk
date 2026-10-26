@@ -60,6 +60,7 @@ local State = {
     OriginalAmbient = Lighting.Ambient,
     OriginalOutdoorAmbient = Lighting.OutdoorAmbient,
     OriginalFogEnd = Lighting.FogEnd,
+    IsLoaded = false,
 }
 
 local Lang = {
@@ -90,9 +91,6 @@ local function findClosestTarget(maxDist)
     return best
 end
 
--- ============================================
--- ЛОГИКА (ВОЗВРАЩЕНА)
--- ============================================
 local function setFly(enabled)
     Config.FlyEnabled = enabled
     local hrp = getHRP() local hum = getHum()
@@ -133,7 +131,6 @@ local function setSpeed(enabled, value)
     if hum then hum.WalkSpeed = enabled and Config.SpeedValue or 16 end
 end
 
--- ВОТ ОНА, ФУНКЦИЯ СУПЕР-БРОСКА
 local function setStrength(enabled)
     Config.StrengthEnabled = enabled
     if State.StrengthConnection then State.StrengthConnection:Disconnect(); State.StrengthConnection = nil end
