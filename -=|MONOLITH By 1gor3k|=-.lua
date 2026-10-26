@@ -51,6 +51,11 @@ local Config = {
     GrabMode = "Normal",
     SkyboxEnabled = false,
     CurrentSkybox = "Default",
+    TornadoActive = false,
+    TornadoMode = "Все",
+    TornadoRadius = 15,
+    TornadoSpeed = 30,
+    TornadoRange = 40,
 }
 
 local State = {
@@ -58,7 +63,7 @@ local State = {
     StrengthConnection = nil, AntiGrabConnection = nil, AntiKickGrabConnection = nil,
     AntiExplosionConnection = nil, AntiExplosionCharConn = nil, SelfDefenseCoroutine = nil,
     LastGrab = 0, oldCameraOffset = nil, IsListeningForBind = false,
-    AFKConnection = nil, SkyObject = nil, Shaders = nil,
+    AFKConnection = nil, SkyObject = nil, Shaders = nil, TornadoTasks = {},
     OriginalBrightness = Lighting.Brightness,
     OriginalAmbient = Lighting.Ambient,
     OriginalOutdoorAmbient = Lighting.OutdoorAmbient,
@@ -66,9 +71,9 @@ local State = {
 }
 
 local Lang = {
-    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык", GrabMode="Режим захвата" },
-    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language", GrabMode="Grab Mode" },
-    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова", GrabMode="Режим захвату" }
+    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", Tornado="Торнадо", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык", GrabMode="Режим захвата", Enable="Включить" },
+    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", Tornado="Tornado", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language", GrabMode="Grab Mode", Enable="Enable" },
+    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", Tornado="Торнадо", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова", GrabMode="Режим захвату", Enable="Включити" }
 }
 
 local function T(key) return Lang[Config.Language][key] or key end
@@ -255,7 +260,6 @@ local function setSelfDefense(enabled)
     end)
 end
 
--- РЕЖИМЫ ЗАХВАТА (Venom X Style)
 local function grabTarget(target)
     if not target or not target.hrp then return end
     if tick() - State.LastGrab < 0.3 then return end
@@ -278,7 +282,6 @@ local function grabTarget(target)
     else
         bv.Velocity = Vector3.zero
     end
-    
     table.insert(State.GrabConstraints, bv)
 end
 
@@ -313,7 +316,6 @@ local function FlingAll()
     WindUI:Notify({Title="MONOLITH", Content="Fling All Executed!", Icon="wind"})
 end
 
--- СКАЙБОКС (С ВКЛ/ВЫКЛ)
 local function toggleSkybox(enabled)
     Config.SkyboxEnabled = enabled
     if enabled then
@@ -351,6 +353,93 @@ local function toggleFullbright(enabled)
     end
 end
 
+local function stopTornado()
+    Config.TornadoActive = false
+    for _, t in ipairs(State.TornadoTasks) do pcall(function() task.cancel(t) end) end
+    State.TornadoTasks = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do 
+        if obj.Name == "FoxTornadoBV" then obj:Destroy() end 
+        if obj.Name == "FoxTornadoAntiGrav" then obj:Destroy() end
+    end
+end
+
+local function startTornado()
+    if Config.TornadoActive then return end
+    Config.TornadoActive = true
+
+    task.spawn(function()
+        while Config.TornadoActive do
+            local char = LP.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            
+            if hrp then
+                local targets = {}
+                
+                if Config.TornadoMode == "Все" or Config.TornadoMode == "Только пропы" then
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        if obj:IsA("BasePart") and not obj.Anchored then
+                            local isChar = false
+                            for _, p in ipairs(Players:GetPlayers()) do 
+                                if p.Character and obj:IsDescendantOf(p.Character) then isChar = true break end 
+                            end
+                            if not isChar and obj ~= hrp and not obj:FindFirstChild("FoxTornadoBV") then
+                                if (obj.Position - hrp.Position).Magnitude <= Config.TornadoRange then
+                                    table.insert(targets, obj)
+                                end
+                            end
+                        end
+                    end
+                end
+
+                if Config.TornadoMode == "Все" or Config.TornadoMode == "Только игроки" then
+                    for _, p in ipairs(Players:GetPlayers()) do
+                        if p ~= LP and p.Character then
+                            local hrp2 = p.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp2 and not hrp2:FindFirstChild("FoxTornadoBV") then 
+                                if (hrp2.Position - hrp.Position).Magnitude <= Config.TornadoRange then
+                                    if SetNetworkOwner then 
+                                        pcall(function() SetNetworkOwner:FireServer(hrp2, hrp2.CFrame) end) 
+                                    end
+                                    table.insert(targets, hrp2) 
+                                end
+                            end
+                        end
+                    end
+                end
+
+                for _, part in ipairs(targets) do
+                    local mass = part:FindFirstChild("FoxTornadoAntiGrav") or Instance.new("BodyForce", part)
+                    mass.Name = "FoxTornadoAntiGrav"
+                    mass.Force = Vector3.new(0, part:GetMass() * workspace.Gravity, 0)
+
+                    local bv = Instance.new("BodyVelocity", part)
+                    bv.Name = "FoxTornadoBV"
+                    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    local offset = math.random() * math.pi * 2
+                    
+                    local th = task.spawn(function()
+                        while Config.TornadoActive and part.Parent do
+                            if not hrp.Parent then break end
+                            local a = (tick() * Config.TornadoSpeed) + offset
+                            local pos = hrp.Position + Vector3.new(
+                                math.cos(a) * Config.TornadoRadius, 
+                                math.random(3, 15), 
+                                math.sin(a) * Config.TornadoRadius
+                            )
+                            bv.Velocity = (pos - part.Position).Unit * 80 
+                            task.wait()
+                        end
+                        if bv then bv:Destroy() end
+                        if mass then mass:Destroy() end
+                    end)
+                    table.insert(State.TornadoTasks, th)
+                end
+            end
+            task.wait(0.2)
+        end
+    end)
+end
+
 local Window = WindUI:CreateWindow({
     Title = T("Title"), Author = "1gor3k", Folder = "MonolithConfig",
     Size = UDim2.fromOffset(560, 520), Theme = "Dark", Resizable = true, SideBarWidth = 160,
@@ -364,6 +453,7 @@ local GrabTab = Window:Tab({ Title = T("Grab"), Icon = "hand" })
 local DefTab = Window:Tab({ Title = T("Defense"), Icon = "shield" })
 local MoveTab = Window:Tab({ Title = T("Movement"), Icon = "person-running" })
 local VisTab = Window:Tab({ Title = T("Visuals"), Icon = "eye" })
+local TornadoTab = Window:Tab({ Title = T("Tornado"), Icon = "tornado" })
 local MiscTab = Window:Tab({ Title = T("Misc"), Icon = "gear" })
 
 local GrabSec = GrabTab:Section({ Title = T("Grab"), Opened = true })
@@ -407,6 +497,19 @@ VisSkySec:Dropdown({ Title = T("Skybox"), Flag = "CurrentSkybox", Values = {"Def
 VisSkySec:Toggle({ Title = T("Shaders"), Flag = "ShadersEnabled", Value = false, Callback = function(s) toggleShaders(s) end })
 VisTab:Section({ Title = T("ESP") }):Toggle({ Title = T("ESP"), Flag = "ESPEnabled", Value = false, Callback = function(s) Config.ESPEnabled = s; if s then _G.RefreshESP() else _G.ClearESP() end end })
 VisTab:Section({ Title = T("Fullbright") }):Toggle({ Title = T("Fullbright"), Flag = "FullbrightEnabled", Value = false, Callback = toggleFullbright })
+
+local TornadoSettings = TornadoTab:Section({ Title = "Settings", Opened = true })
+TornadoSettings:Dropdown({ Title = "Режим", Flag = "TornadoMode", Values = {"Все", "Только игроки", "Только пропы"}, Value = "Все", Callback = function(v) Config.TornadoMode = v end })
+TornadoSettings:Slider({ Title = "Радиус вращения", Flag = "TornadoRadius", Value = { Min = 5, Max = 50, Default = 15 }, Step = 1, Callback = function(v) Config.TornadoRadius = v end })
+TornadoSettings:Slider({ Title = "Скорость", Flag = "TornadoSpeed", Value = { Min = 10, Max = 100, Default = 30 }, Step = 5, Callback = function(v) Config.TornadoSpeed = v end })
+TornadoSettings:Slider({ Title = "Радиус сбора", Flag = "TornadoRange", Value = { Min = 10, Max = 100, Default = 40 }, Step = 5, Callback = function(v) Config.TornadoRange = v end })
+
+TornadoTab:Section({ Title = "Action" }):Toggle({
+    Title = "Включить Торнадо", Flag = "TornadoActive", Value = false,
+    Callback = function(state)
+        if state then startTornado() else stopTornado() end
+    end,
+})
 
 local MiscActionsSec = MiscTab:Section({ Title = T("Misc"), Opened = true })
 MiscActionsSec:Button({ Title = T("Rejoin"), Icon = "rotate-cw", Callback = function() TeleportService:Teleport(game.PlaceId, LP) end })
