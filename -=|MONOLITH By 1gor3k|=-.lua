@@ -48,6 +48,9 @@ local Config = {
     AntiAFKEnabled = false,
     MenuKey = Enum.KeyCode.RightControl,
     Language = "RU",
+    GrabMode = "Normal",
+    SkyboxEnabled = false,
+    CurrentSkybox = "Default",
 }
 
 local State = {
@@ -60,13 +63,12 @@ local State = {
     OriginalAmbient = Lighting.Ambient,
     OriginalOutdoorAmbient = Lighting.OutdoorAmbient,
     OriginalFogEnd = Lighting.FogEnd,
-    IsLoaded = false,
 }
 
 local Lang = {
-    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык" },
-    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language" },
-    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова" }
+    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык", GrabMode="Режим захвата" },
+    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language", GrabMode="Grab Mode" },
+    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова", GrabMode="Режим захвату" }
 }
 
 local function T(key) return Lang[Config.Language][key] or key end
@@ -253,6 +255,7 @@ local function setSelfDefense(enabled)
     end)
 end
 
+-- РЕЖИМЫ ЗАХВАТА (Venom X Style)
 local function grabTarget(target)
     if not target or not target.hrp then return end
     if tick() - State.LastGrab < 0.3 then return end
@@ -262,8 +265,20 @@ local function grabTarget(target)
     local myHRP = getHRP() if not myHRP then return end
     State.GrabbedTarget = target
     if SetNetworkOwner then pcall(function() SetNetworkOwner:FireServer(target.hrp, target.hrp.CFrame) end) end
+    
     local bv = Instance.new("BodyVelocity", target.hrp)
-    bv.Name = "Monolith_GrabBV"; bv.MaxForce = Vector3.new(9e9, 9e9, 9e9); bv.Velocity = Vector3.zero
+    bv.Name = "Monolith_GrabBV"
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    
+    if Config.GrabMode == "Massless" then
+        bv.Velocity = Vector3.zero
+        target.hrp.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0.01, 0.01, 0, 0)
+    elseif Config.GrabMode == "Kill" then
+        bv.Velocity = Vector3.new(0, -500, 0)
+    else
+        bv.Velocity = Vector3.zero
+    end
+    
     table.insert(State.GrabConstraints, bv)
 end
 
@@ -274,10 +289,15 @@ local function releaseGrab()
     for _, c in pairs(State.GrabConstraints) do if c then c:Destroy() end end
     State.GrabConstraints = {}; State.GrabbedTarget = nil
     if not targetHRP or not targetHRP.Parent then return end
-    local bv = Instance.new("BodyVelocity", targetHRP)
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Velocity = Camera.CFrame.LookVector * Config.ThrowPower + Vector3.new(0, Config.ThrowPower * 0.4, 0)
-    Debris:AddItem(bv, 1)
+    
+    if Config.GrabMode == "Kill" then
+        targetHRP.CFrame = CFrame.new(0, -100, 0)
+    else
+        local bv = Instance.new("BodyVelocity", targetHRP)
+        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        bv.Velocity = Camera.CFrame.LookVector * Config.ThrowPower + Vector3.new(0, Config.ThrowPower * 0.4, 0)
+        Debris:AddItem(bv, 1)
+    end
 end
 
 local function FlingAll()
@@ -293,14 +313,21 @@ local function FlingAll()
     WindUI:Notify({Title="MONOLITH", Content="Fling All Executed!", Icon="wind"})
 end
 
-local function setSkybox(presetName)
-    if State.SkyObject then State.SkyObject:Destroy() end
-    local preset = SkyPresets[presetName]
-    if not preset then return end
-    local sky = Instance.new("Sky")
-    sky.SkyboxUp = preset.Up; sky.SkyboxDn = preset.Dn; sky.SkyboxFt = preset.Ft; sky.SkyboxBk = preset.Bk; sky.SkyboxLf = preset.Lf; sky.SkyboxRt = preset.Rt
-    sky.Parent = Lighting
-    State.SkyObject = sky
+-- СКАЙБОКС (С ВКЛ/ВЫКЛ)
+local function toggleSkybox(enabled)
+    Config.SkyboxEnabled = enabled
+    if enabled then
+        if State.SkyObject then State.SkyObject:Destroy() end
+        local preset = SkyPresets[Config.CurrentSkybox]
+        if preset then
+            local sky = Instance.new("Sky")
+            sky.SkyboxUp = preset.Up; sky.SkyboxDn = preset.Dn; sky.SkyboxFt = preset.Ft; sky.SkyboxBk = preset.Bk; sky.SkyboxLf = preset.Lf; sky.SkyboxRt = preset.Rt
+            sky.Parent = Lighting
+            State.SkyObject = sky
+        end
+    else
+        if State.SkyObject then State.SkyObject:Destroy(); State.SkyObject = nil end
+    end
 end
 
 local function toggleShaders(enabled)
@@ -342,6 +369,7 @@ local MiscTab = Window:Tab({ Title = T("Misc"), Icon = "gear" })
 local GrabSec = GrabTab:Section({ Title = T("Grab"), Opened = true })
 GrabSec:Slider({ Title = T("GrabRange"), Flag = "GrabRange", Value = { Min = 10, Max = 100, Default = 30 }, Step = 1, Callback = function(v) Config.GrabRange = v end })
 GrabSec:Slider({ Title = T("ThrowPower"), Flag = "ThrowPower", Value = { Min = 100, Max = 10000, Default = 300 }, Step = 100, Callback = function(v) Config.ThrowPower = v end })
+GrabSec:Dropdown({ Title = T("GrabMode"), Flag = "GrabMode", Values = {"Normal", "Massless", "Kill"}, Value = "Normal", Callback = function(v) Config.GrabMode = v end })
 GrabSec:Button({ Title = T("Grab") .. " (Q)", Icon = "hand", Callback = function() local t = findClosestTarget(Config.GrabRange) if t then grabTarget(t) end end })
 GrabSec:Button({ Title = "Release (E)", Icon = "arrow-up-from-line", Callback = function() releaseGrab() end })
 GrabTab:Section({ Title = T("Strength") }):Toggle({ Title = T("Strength"), Flag = "StrengthEnabled", Value = false, Callback = setStrength })
@@ -374,7 +402,8 @@ VisCamSec:Toggle({ Title = T("ThirdPerson"), Flag = "ThirdPersonEnabled", Value 
     end
 end })
 local VisSkySec = VisTab:Section({ Title = T("Skybox") })
-VisSkySec:Dropdown({ Title = T("Skybox"), Flag = "Skybox", Values = {"Default", "Vaporwave", "Galaxy", "Storm"}, Value = "Default", Callback = function(v) setSkybox(v) end })
+VisSkySec:Toggle({ Title = "Enable Skybox", Flag = "SkyboxEnabled", Value = false, Callback = function(s) toggleSkybox(s) end })
+VisSkySec:Dropdown({ Title = T("Skybox"), Flag = "CurrentSkybox", Values = {"Default", "Vaporwave", "Galaxy", "Storm"}, Value = "Default", Callback = function(v) Config.CurrentSkybox = v; if Config.SkyboxEnabled then toggleSkybox(true) end end })
 VisSkySec:Toggle({ Title = T("Shaders"), Flag = "ShadersEnabled", Value = false, Callback = function(s) toggleShaders(s) end })
 VisTab:Section({ Title = T("ESP") }):Toggle({ Title = T("ESP"), Flag = "ESPEnabled", Value = false, Callback = function(s) Config.ESPEnabled = s; if s then _G.RefreshESP() else _G.ClearESP() end end })
 VisTab:Section({ Title = T("Fullbright") }):Toggle({ Title = T("Fullbright"), Flag = "FullbrightEnabled", Value = false, Callback = toggleFullbright })
