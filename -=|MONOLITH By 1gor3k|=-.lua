@@ -12,16 +12,6 @@ local VirtualUser = game:GetService("VirtualUser")
 local Camera = workspace.CurrentCamera
 local LP = Players.LocalPlayer
 
-local KillGrabRemote
-pcall(function()
-    KillGrabRemote = ReplicatedStorage:FindFirstChild("Monolith_KillGrab")
-    if not KillGrabRemote then
-        KillGrabRemote = Instance.new("RemoteEvent")
-        KillGrabRemote.Name = "Monolith_KillGrab"
-        KillGrabRemote.Parent = ReplicatedStorage
-    end
-end)
-
 local GrabEvents, CharacterEvents, SetNetworkOwner, Struggle, StopAllVelocity, RagdollRemote
 pcall(function()
     GrabEvents = ReplicatedStorage:WaitForChild("GrabEvents", 10)
@@ -63,12 +53,9 @@ local Config = {
     CurrentSkybox = "Default",
     BlackHoleActive = false,
     BlackHoleMode = "Все",
-    BlackHoleRadius = 15,
+    BlackHoleHeight = 5,
     BlackHoleSpeed = 30,
     BlackHoleRange = 40,
-    RamActive = false,
-    RamSpeed = 150,
-    RamKillRange = 6,
 }
 
 local State = {
@@ -84,9 +71,9 @@ local State = {
 }
 
 local Lang = {
-    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", BlackHole="Чёрная дыра", Ram="Влёт", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык", GrabMode="Режим захвата", Enable="Включить" },
-    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", BlackHole="Black Hole", Ram="Ram", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language", GrabMode="Grab Mode", Enable="Enable" },
-    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", BlackHole="Чорна діра", Ram="Вліт", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова", GrabMode="Режим захвату", Enable="Включити" }
+    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", BlackHole="Чёрная дыра", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык", GrabMode="Режим захвата", Enable="Включить" },
+    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", BlackHole="Black Hole", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language", GrabMode="Grab Mode", Enable="Enable" },
+    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", BlackHole="Чорна діра", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова", GrabMode="Режим захвату", Enable="Включити" }
 }
 
 local function T(key) return Lang[Config.Language][key] or key end
@@ -375,16 +362,18 @@ local function stopBlackHole()
     Config.BlackHoleActive = false
     for _, t in ipairs(State.BlackHoleTasks) do pcall(function() task.cancel(t) end) end
     State.BlackHoleTasks = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do 
-        if obj.Name == "FoxBlackHoleBV" then obj:Destroy() end 
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "FoxBlackHoleBP" then obj:Destroy() end
         if obj.Name == "FoxBlackHoleAntiGrav" then obj:Destroy() end
+        if obj:IsA("BasePart") and obj:GetAttribute("FoxBlackHoleCollide") then
+            obj.CanCollide = true
+            obj:SetAttribute("FoxBlackHoleCollide", nil)
+        end
     end
-    local hum = getHum()
-    if hum then hum.PlatformStand = false end
     local hrp = getHRP()
     if hrp then
         hrp.Anchored = false
-        if hrp:FindFirstChild("FoxBlackHoleBV") then hrp.FoxBlackHoleBV:Destroy() end
+        if hrp:FindFirstChild("FoxBlackHoleBP") then hrp.FoxBlackHoleBP:Destroy() end
         if hrp:FindFirstChild("FoxBlackHoleAntiGrav") then hrp.FoxBlackHoleAntiGrav:Destroy() end
     end
 end
@@ -393,26 +382,27 @@ local function startBlackHole()
     if Config.BlackHoleActive then return end
     Config.BlackHoleActive = true
 
-    local selfHum = getHum()
-    if selfHum then selfHum.PlatformStand = true end
-
     task.spawn(function()
         while Config.BlackHoleActive do
             local char = LP.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            
+
             if hrp then
+                pcall(function() if Struggle then Struggle:FireServer() end end)
+                pcall(function() if StopAllVelocity then StopAllVelocity:FireServer() end end)
+
+                local anchorPos = hrp.Position + Vector3.new(0, Config.BlackHoleHeight, 0)
                 local targets = {}
-                
+
                 if Config.BlackHoleMode == "Все" or Config.BlackHoleMode == "Только пропы" then
                     for _, obj in ipairs(workspace:GetDescendants()) do
                         if obj:IsA("BasePart") and not obj.Anchored then
                             if obj ~= hrp and not isMyPart(obj) then
                                 local isChar = false
-                                for _, p in ipairs(Players:GetPlayers()) do 
-                                    if p.Character and obj:IsDescendantOf(p.Character) then isChar = true break end 
+                                for _, p in ipairs(Players:GetPlayers()) do
+                                    if p.Character and obj:IsDescendantOf(p.Character) then isChar = true break end
                                 end
-                                if not isChar and not obj:FindFirstChild("FoxBlackHoleBV") then
+                                if not isChar and not obj:FindFirstChild("FoxBlackHoleBP") then
                                     if (obj.Position - hrp.Position).Magnitude <= Config.BlackHoleRange then
                                         table.insert(targets, obj)
                                     end
@@ -426,13 +416,13 @@ local function startBlackHole()
                     for _, p in ipairs(Players:GetPlayers()) do
                         if p ~= LP and p.Character then
                             local hrp2 = p.Character:FindFirstChild("HumanoidRootPart")
-                            if hrp2 and not hrp2:FindFirstChild("FoxBlackHoleBV") 
-                               and hrp2 ~= hrp and not isMyPart(hrp2) then 
+                            if hrp2 and not hrp2:FindFirstChild("FoxBlackHoleBP")
+                               and hrp2 ~= hrp and not isMyPart(hrp2) then
                                 if (hrp2.Position - hrp.Position).Magnitude <= Config.BlackHoleRange then
-                                    if SetNetworkOwner then 
-                                        pcall(function() SetNetworkOwner:FireServer(hrp2, hrp2.CFrame) end) 
+                                    if SetNetworkOwner then
+                                        pcall(function() SetNetworkOwner:FireServer(hrp2, hrp2.CFrame) end)
                                     end
-                                    table.insert(targets, hrp2) 
+                                    table.insert(targets, hrp2)
                                 end
                             end
                         end
@@ -441,134 +431,42 @@ local function startBlackHole()
 
                 for _, part in ipairs(targets) do
                     if part ~= hrp and not isMyPart(part) and part.Parent then
+                        if part.CanCollide then
+                            part.CanCollide = false
+                            part:SetAttribute("FoxBlackHoleCollide", true)
+                        end
+
+                        local bp = part:FindFirstChild("FoxBlackHoleBP") or Instance.new("BodyPosition", part)
+                        bp.Name = "FoxBlackHoleBP"
+                        bp.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        bp.P = 30000
+                        bp.D = 500
+
                         local mass = part:FindFirstChild("FoxBlackHoleAntiGrav") or Instance.new("BodyForce", part)
                         mass.Name = "FoxBlackHoleAntiGrav"
                         mass.Force = Vector3.new(0, part:GetMass() * workspace.Gravity, 0)
 
-                        local bv = part:FindFirstChild("FoxBlackHoleBV") or Instance.new("BodyVelocity", part)
-                        bv.Name = "FoxBlackHoleBV"
-                        bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                        local offset = math.random() * math.pi * 2
-                        
                         local th = task.spawn(function()
                             while Config.BlackHoleActive and part.Parent do
                                 if not hrp.Parent then break end
                                 if isMyPart(part) then break end
-                                local a = (tick() * Config.BlackHoleSpeed) + offset
-                                local pos = hrp.Position + Vector3.new(
-                                    math.cos(a) * Config.BlackHoleRadius, 
-                                    math.random(3, 15), 
-                                    math.sin(a) * Config.BlackHoleRadius
-                                )
-                                local delta = pos - part.Position
-                                if delta.Magnitude > 0.01 then
-                                    bv.Velocity = delta.Unit * 80 
-                                end
+                                local target = hrp.Position + Vector3.new(0, Config.BlackHoleHeight, 0)
+                                bp.Position = target
+                                mass.Force = Vector3.new(0, part:GetMass() * workspace.Gravity, 0)
                                 task.wait()
                             end
-                            if bv then bv:Destroy() end
+                            if bp then bp:Destroy() end
                             if mass then mass:Destroy() end
+                            if part and part:GetAttribute("FoxBlackHoleCollide") then
+                                part.CanCollide = true
+                                part:SetAttribute("FoxBlackHoleCollide", nil)
+                            end
                         end)
                         table.insert(State.BlackHoleTasks, th)
                     end
                 end
             end
             task.wait(0.2)
-        end
-    end)
-end
-
-local function stopRam()
-    Config.RamActive = false
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj.Name == "Monolith_RamGrab" or obj.Name == "Monolith_RamAlign" then
-            obj:Destroy()
-        end
-    end
-    local hum = getHum()
-    if hum then
-        hum.WalkSpeed = Config.SpeedEnabled and Config.SpeedValue or 16
-    end
-end
-
-local function startRam()
-    if Config.RamActive then return end
-    Config.RamActive = true
-
-    local hum = getHum()
-    if not hum then Config.RamActive = false; return end
-
-    hum.WalkSpeed = Config.RamSpeed
-
-    task.spawn(function()
-        while Config.RamActive do
-            local char = LP.Character
-            local myHRP = char and char:FindFirstChild("HumanoidRootPart")
-            if not myHRP or not myHRP.Parent then break end
-
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= LP and p.Character then
-                    local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-                    local tHum = p.Character:FindFirstChildOfClass("Humanoid")
-                    local tHead = p.Character:FindFirstChild("Head")
-                    if tHRP and tHum and tHum.Health > 0 then
-                        if (tHRP.Position - myHRP.Position).Magnitude <= Config.RamKillRange then
-                            if SetNetworkOwner then
-                                pcall(function() SetNetworkOwner:FireServer(tHRP, tHRP.CFrame) end)
-                                if tHead then
-                                    pcall(function() SetNetworkOwner:FireServer(tHead, tHRP.CFrame) end)
-                                end
-                            end
-
-                            pcall(function()
-                                if RagdollRemote then RagdollRemote:FireServer(tHRP, 1) end
-                            end)
-                            pcall(function() if Struggle then Struggle:FireServer() end end)
-                            pcall(function() if StopAllVelocity then StopAllVelocity:FireServer() end end)
-
-                            if KillGrabRemote then
-                                pcall(function()
-                                    KillGrabRemote:FireServer(p, tHRP, tHum, "Kill")
-                                end)
-                            end
-
-                            if not tHRP:FindFirstChild("Monolith_RamAlign") then
-                                local align = Instance.new("AlignPosition")
-                                align.Name = "Monolith_RamAlign"
-                                align.Attachment0 = tHRP:FindFirstChild("RootAttachment") or (function()
-                                    local a = Instance.new("Attachment", tHRP)
-                                    a.Name = "RootAttachment"
-                                    return a
-                                end)()
-                                align.Attachment1 = myHRP:FindFirstChild("RootAttachment") or (function()
-                                    local a = Instance.new("Attachment", myHRP)
-                                    a.Name = "RootAttachment"
-                                    return a
-                                end)()
-                                align.MaxForce = math.huge
-                                align.Responsiveness = 200
-                                align.Position = Vector3.new(0, -3, 0)
-                                align.Parent = tHRP
-                                Debris:AddItem(align, 1.5)
-                            end
-
-                            task.spawn(function()
-                                for _ = 1, 3 do
-                                    if tHum and tHum.Parent and tHum.Health > 0 then
-                                        pcall(function() tHum.Health = 0 end)
-                                    end
-                                    task.wait(0.1)
-                                end
-                            end)
-                        end
-                    end
-                end
-            end
-            task.wait()
-        end
-        local h = getHum()
-        if h then
-            h.WalkSpeed = Config.SpeedEnabled and Config.SpeedValue or 16
         end
     end)
 end
@@ -587,7 +485,6 @@ local DefTab = Window:Tab({ Title = T("Defense"), Icon = "shield" })
 local MoveTab = Window:Tab({ Title = T("Movement"), Icon = "person-running" })
 local VisTab = Window:Tab({ Title = T("Visuals"), Icon = "eye" })
 local BlackHoleTab = Window:Tab({ Title = T("BlackHole"), Icon = "circle-dot" })
-local RamTab = Window:Tab({ Title = T("Ram"), Icon = "wind" })
 local MiscTab = Window:Tab({ Title = T("Misc"), Icon = "gear" })
 
 local GrabSec = GrabTab:Section({ Title = T("Grab"), Opened = true })
@@ -634,7 +531,7 @@ VisTab:Section({ Title = T("Fullbright") }):Toggle({ Title = T("Fullbright"), Fl
 
 local BlackHoleSettings = BlackHoleTab:Section({ Title = "Settings", Opened = true })
 BlackHoleSettings:Dropdown({ Title = "Режим", Flag = "BlackHoleMode", Values = {"Все", "Только игроки", "Только пропы"}, Value = "Все", Callback = function(v) Config.BlackHoleMode = v end })
-BlackHoleSettings:Slider({ Title = "Радиус вращения", Flag = "BlackHoleRadius", Value = { Min = 5, Max = 50, Default = 15 }, Step = 1, Callback = function(v) Config.BlackHoleRadius = v end })
+BlackHoleSettings:Slider({ Title = "Высота притяжения", Flag = "BlackHoleHeight", Value = { Min = 0, Max = 30, Default = 5 }, Step = 1, Callback = function(v) Config.BlackHoleHeight = v end })
 BlackHoleSettings:Slider({ Title = "Скорость", Flag = "BlackHoleSpeed", Value = { Min = 10, Max = 100, Default = 30 }, Step = 5, Callback = function(v) Config.BlackHoleSpeed = v end })
 BlackHoleSettings:Slider({ Title = "Радиус сбора", Flag = "BlackHoleRange", Value = { Min = 10, Max = 100, Default = 40 }, Step = 5, Callback = function(v) Config.BlackHoleRange = v end })
 
@@ -642,17 +539,6 @@ BlackHoleTab:Section({ Title = "Action" }):Toggle({
     Title = "Включить Чёрную дыру", Flag = "BlackHoleActive", Value = false,
     Callback = function(state)
         if state then startBlackHole() else stopBlackHole() end
-    end,
-})
-
-local RamSettings = RamTab:Section({ Title = "Настройки влёта", Opened = true })
-RamSettings:Slider({ Title = "Скорость бега", Flag = "RamSpeed", Value = { Min = 30, Max = 300, Default = 150 }, Step = 5, Callback = function(v) Config.RamSpeed = v; if Config.RamActive then local h = getHum(); if h then h.WalkSpeed = v end end end })
-RamSettings:Slider({ Title = "Радиус хвата", Flag = "RamKillRange", Value = { Min = 2, Max = 20, Default = 6 }, Step = 1, Callback = function(v) Config.RamKillRange = v end })
-
-RamTab:Section({ Title = "Action" }):Toggle({
-    Title = "Бег + хват (сдох)", Flag = "RamActive", Value = false,
-    Callback = function(s)
-        if s then startRam() else stopRam() end
     end,
 })
 
