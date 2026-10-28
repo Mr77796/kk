@@ -1,633 +1,359 @@
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/refs/heads/main/dist/main.lua"))()
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local HttpService = game:GetService("HttpService")
-local CoreGui = game:GetService("CoreGui")
 local Debris = game:GetService("Debris")
-local LP = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
 local Camera = workspace.CurrentCamera
+local LP = Players.LocalPlayer
 
-local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/refs/heads/main/dist/main.lua"))()
+local GrabEvents, CharacterEvents, SetNetworkOwner, Struggle, StopAllVelocity, RagdollRemote
+pcall(function()
+    GrabEvents = ReplicatedStorage:WaitForChild("GrabEvents", 10)
+    CharacterEvents = ReplicatedStorage:WaitForChild("CharacterEvents", 10)
+    if GrabEvents then SetNetworkOwner = GrabEvents:WaitForChild("SetNetworkOwner", 10) end
+    if CharacterEvents then
+        Struggle = CharacterEvents:WaitForChild("Struggle", 10)
+        RagdollRemote = CharacterEvents:WaitForChild("RagdollRemote", 10)
+    end
+    local GameCorrectionEvents = ReplicatedStorage:FindFirstChild("GameCorrectionEvents")
+    if GameCorrectionEvents then
+        StopAllVelocity = GameCorrectionEvents:FindFirstChild("StopAllVelocity")
+    end
+end)
+
+local SkyPresets = {
+    ["Default"] = {Up = "rbxassetid://15983964246", Dn = "rbxassetid://15983966825", Ft = "rbxassetid://5260817288", Bk = "rbxassetid://15983968922", Lf = "rbxassetid://15983967420", Rt = "rbxassetid://15983966246"},
+    ["Vaporwave"] = {Up = "rbxassetid://14164405298", Dn = "rbxassetid://14164386126", Ft = "rbxassetid://14164389230", Bk = "rbxassetid://14164368678", Lf = "rbxassetid://14164398493", Rt = "rbxassetid://14164402782"},
+    ["Galaxy"] = {Up = "rbxassetid://14543371676", Dn = "rbxassetid://14543358958", Ft = "rbxassetid://14543257810", Bk = "rbxassetid://14543264135", Lf = "rbxassetid://14543275895", Rt = "rbxassetid://14543280890"},
+    ["Storm"] = {Up = "rbxassetid://1618913654", Dn = "rbxassetid://1618913943", Ft = "rbxassetid://1618913244", Bk = "rbxassetid://1618912481", Lf = "rbxassetid://1618912849", Rt = "rbxassetid://1618911568"}
+}
 
 local Config = {
-    Speed = 50, Jump = 100, FlySpeed = 60,
-    AimFOV = 200, AimSmooth = 0.35, AimSticky = 0.6,
-    KnifeRange = 8, KnifeCooldown = 0.7,
+    GrabRange = 30, ThrowPower = 300,
+    FlyEnabled = false, FlySpeed = 60,
+    SpeedEnabled = false, SpeedValue = 40,
+    NoclipEnabled = false, InfJumpEnabled = false,
+    ESPEnabled = false,
+    FullbrightEnabled = false,
+    AntiGrabEnabled = false, AntiKickGrabEnabled = false, AntiExplosionEnabled = false,
+    SelfDefenseEnabled = false,
+    StrengthEnabled = false,
+    ThirdPersonEnabled = false,
+    AntiAFKEnabled = false,
     MenuKey = Enum.KeyCode.RightControl,
-    AimKey = Enum.KeyCode.E,
-    KnifeKey = Enum.KeyCode.Q,
-    AccentIndex = 1,
-    Transparency = 0,
-    MenuWidth = 560, MenuHeight = 650,
-    FlingPower = 800,
-    FlingUp = 500,
-    FlingSpin = 30,
-    SpinSpeed = 40,
+    Language = "RU",
+    GrabMode = "Normal",
+    SkyboxEnabled = false,
+    CurrentSkybox = "Default",
     BlackHoleActive = false,
+    BlackHoleMode = "Все",
     BlackHoleRadius = 15,
     BlackHoleSpeed = 30,
     BlackHoleRange = 40,
-    BlackHoleMode = "Все",
-    BlackHoleTasks = {},
     RamActive = false,
     RamSpeed = 150,
     RamKillRange = 6,
 }
 
 local State = {
-    Speed = false, Jump = false, Fly = false,
-    ESP = false, Fullbright = false, Noclip = false,
-    Aim = false, AutoKnife = false, InfiniteJump = false,
-    AimKeyHeld = false, FlingActive = false,
-    FlingTarget = nil, FlingThread = nil,
+    GrabbedTarget = nil, GrabConstraints = {},
+    StrengthConnection = nil, AntiGrabConnection = nil, AntiKickGrabConnection = nil,
+    AntiExplosionConnection = nil, AntiExplosionCharConn = nil, SelfDefenseCoroutine = nil,
+    LastGrab = 0, oldCameraOffset = nil, IsListeningForBind = false,
+    AFKConnection = nil, SkyObject = nil, Shaders = nil, BlackHoleTasks = {},
+    OriginalBrightness = Lighting.Brightness,
+    OriginalAmbient = Lighting.Ambient,
+    OriginalOutdoorAmbient = Lighting.OutdoorAmbient,
+    OriginalFogEnd = Lighting.FogEnd,
 }
 
-local ACCENT_COLORS = {
-    {name = "Green",  color = Color3.fromRGB(0, 255, 170)},
-    {name = "Blue",   color = Color3.fromRGB(60, 140, 255)},
-    {name = "Red",    color = Color3.fromRGB(255, 70, 70)},
-    {name = "Purple", color = Color3.fromRGB(180, 100, 255)},
-    {name = "Yellow", color = Color3.fromRGB(255, 210, 60)},
-    {name = "Pink",   color = Color3.fromRGB(255, 100, 180)},
+local Lang = {
+    RU = { Title="MONOLITH", Grab="Захват", Defense="Защита", Movement="Движение", Visuals="Визуал", BlackHole="Чёрная дыра", Ram="Влёт", Misc="Разное", Speed="Скорость", Fly="Полет", Noclip="Ноклип", InfJump="Беск. прыжок", ESP="ESP", Fullbright="Полная яркость", ThirdPerson="Вид от 3-го лица", AntiGrab="Анти-Захват", AntiKick="Анти-Кик", AntiExplosion="Анти-Взрыв", AntiFling="Анти-Флинг", SelfDefense="Самооборона", Strength="Супер-бросок", GrabRange="Дистанция захвата", ThrowPower="Сила броска", FlySpeed="Скорость полета", SpeedVal="Скорость", Rejoin="Перезайти", ServerHop="Сменить сервер", AntiAFK="Анти-АФК", SetKey="Назначить клавишу", Skybox="Скайбокс", Shaders="Шейдеры", FlingAll="Швырнуть всех", Language="Язык", GrabMode="Режим захвата", Enable="Включить" },
+    EN = { Title="MONOLITH", Grab="Grab", Defense="Defense", Movement="Movement", Visuals="Visuals", BlackHole="Black Hole", Ram="Ram", Misc="Misc", Speed="Speed", Fly="Fly", Noclip="Noclip", InfJump="Inf Jump", ESP="ESP", Fullbright="Fullbright", ThirdPerson="3rd Person", AntiGrab="Anti-Grab", AntiKick="Anti-Kick", AntiExplosion="Anti-Explosion", AntiFling="Anti-Fling", SelfDefense="Self Defense", Strength="Strength", GrabRange="Grab Range", ThrowPower="Throw Power", FlySpeed="Fly Speed", SpeedVal="Speed", Rejoin="Rejoin", ServerHop="Server Hop", AntiAFK="Anti-AFK", SetKey="Set Menu Key", Skybox="Skybox", Shaders="Shaders", FlingAll="Fling All", Language="Language", GrabMode="Grab Mode", Enable="Enable" },
+    UA = { Title="MONOLITH", Grab="Захват", Defense="Захист", Movement="Рух", Visuals="Візуал", BlackHole="Чорна діра", Ram="Вліт", Misc="Різне", Speed="Швидкість", Fly="Політ", Noclip="Нокліп", InfJump="Безк. стрибок", ESP="ESP", Fullbright="Повна яскравість", ThirdPerson="Вигляд від 3-ї особи", AntiGrab="Анти-Захват", AntiKick="Анти-Кік", AntiExplosion="Анти-Вибух", AntiFling="Анти-Флінг", SelfDefense="Самозахист", Strength="Супер-кидок", GrabRange="Дистанція захвату", ThrowPower="Сила кидка", FlySpeed="Швидкість польоту", SpeedVal="Швидкість", Rejoin="Перезайти", ServerHop="Змінити сервер", AntiAFK="Анти-АФК", SetKey="Призначити клавішу", Skybox="Скайбокс", Shaders="Шейдери", FlingAll="Жбурнути всіх", Language="Мова", GrabMode="Режим захвату", Enable="Включити" }
 }
 
-local function getAccent()
-    return ACCENT_COLORS[Config.AccentIndex or 1].color
-end
+local function T(key) return Lang[Config.Language][key] or key end
+local function getChar() local c = LP.Character if not c or not c.Parent then return nil end return c end
+local function getHRP() local c = getChar() if not c then return nil end return c:FindFirstChild("HumanoidRootPart") end
+local function getHum() local c = getChar() if not c then return nil end return c:FindFirstChildOfClass("Humanoid") end
+local function isAlive(p) if not p then return false end local c = p.Character if not c or not c.Parent then return false end local h = c:FindFirstChildOfClass("Humanoid") return h and h.Health > 0 end
 
-local SAVE_KEY = "MM2_FoxClaude_Settings"
-
-local function saveSettings()
-    local data = {
-        Config = {
-            Speed = Config.Speed, Jump = Config.Jump, FlySpeed = Config.FlySpeed,
-            AimFOV = Config.AimFOV, AimSmooth = Config.AimSmooth, AimSticky = Config.AimSticky,
-            KnifeRange = Config.KnifeRange, KnifeCooldown = Config.KnifeCooldown,
-            MenuKey = Config.MenuKey.Name, AimKey = Config.AimKey.Name, KnifeKey = Config.KnifeKey.Name,
-            AccentIndex = Config.AccentIndex, Transparency = Config.Transparency,
-            MenuWidth = Config.MenuWidth, MenuHeight = Config.MenuHeight,
-            FlingPower = Config.FlingPower, FlingUp = Config.FlingUp, FlingSpin = Config.FlingSpin,
-            SpinSpeed = Config.SpinSpeed, BlackHoleRadius = Config.BlackHoleRadius,
-            BlackHoleSpeed = Config.BlackHoleSpeed, BlackHoleRange = Config.BlackHoleRange,
-            RamSpeed = Config.RamSpeed, RamKillRange = Config.RamKillRange,
-        },
-        State = {
-            Speed = State.Speed, Jump = State.Jump, ESP = State.ESP,
-            Fullbright = State.Fullbright, Noclip = State.Noclip,
-            Aim = State.Aim, AutoKnife = State.AutoKnife, InfiniteJump = State.InfiniteJump,
-        }
-    }
-    pcall(function() writefile(SAVE_KEY .. ".json", HttpService:JSONEncode(data)) end)
-end
-
-local function loadSettings()
-    local ok, raw = pcall(readfile, SAVE_KEY .. ".json")
-    if not ok or not raw then return nil end
-    local ok2, data = pcall(HttpService.JSONDecode, HttpService, raw)
-    if not ok2 then return nil end
-    return data
-end
-
-local SavedData = loadSettings()
-if SavedData and SavedData.Config then
-    local C = SavedData.Config
-    for k, v in pairs(C) do if Config[k] ~= nil then Config[k] = v end end
-    if type(Config.MenuKey) == "string" then
-        local ok, key = pcall(function() return Enum.KeyCode[Config.MenuKey] end)
-        Config.MenuKey = (ok and key) or Enum.KeyCode.RightControl
-    end
-    if type(Config.AimKey) == "string" then
-        local ok, key = pcall(function() return Enum.KeyCode[Config.AimKey] end)
-        Config.AimKey = (ok and key) or Enum.KeyCode.E
-    end
-    if type(Config.KnifeKey) == "string" then
-        local ok, key = pcall(function() return Enum.KeyCode[Config.KnifeKey] end)
-        Config.KnifeKey = (ok and key) or Enum.KeyCode.Q
-    end
-end
-
-local ROLE_COLORS = {
-    Murderer = Color3.fromRGB(255, 60, 60),
-    Innocent = Color3.fromRGB(60, 255, 60),
-    Sheriff  = Color3.fromRGB(60, 140, 255),
-}
-
-local function getPlayerRole(player)
-    local function scanTools(container)
-        if not container then return nil end
-        for _, tool in ipairs(container:GetChildren()) do
-            if tool:IsA("Tool") then
-                if tool.Name == "Knife" then return "Murderer" end
-                if tool.Name == "Gun" or tool.Name == "Revolver" then return "Sheriff" end
+local function findClosestTarget(maxDist)
+    maxDist = maxDist or math.huge
+    local myHRP = getHRP() if not myHRP then return nil end
+    local best, bestDist = nil, maxDist
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and isAlive(p) then
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local d = (hrp.Position - myHRP.Position).Magnitude
+                if d < bestDist then bestDist = d; best = {hrp = hrp, hum = p.Character:FindFirstChildOfClass("Humanoid"), player = p, char = p.Character} end
             end
         end
     end
-    return scanTools(player.Character) or scanTools(player:FindFirstChild("Backpack")) or "Innocent"
+    return best
 end
 
-local function notify(title, text, duration)
-    WindUI:Notify({Title = title, Content = text, Icon = "wind", Duration = duration or 3})
-end
-
-local Window = WindUI:CreateWindow({
-    Title = "MM2 • FOX + CLAUDE",
-    Author = "1gor3k",
-    Folder = "MM2FoxClaude",
-    Size = UDim2.fromOffset(Config.MenuWidth, Config.MenuHeight),
-    Theme = "Dark",
-    Resizable = true,
-    SideBarWidth = 160,
-    HideSearchBar = false,
-    NewElements = true,
-    ScrollBarEnabled = true,
-    Acrylic = false,
-    OpenButton = { Title = "F", Enabled = true, Draggable = true, CornerRadius = UDim.new(1, 0), Color = ColorSequence.new(getAccent(), getAccent()), OnlyMobile = false },
-})
-
-local MyConfig = Window.ConfigManager:CreateConfig("AutoSave", true)
-
-local MoveTab = Window:Tab({ Title = "Move", Icon = "person-running" })
-local VisTab = Window:Tab({ Title = "Visual", Icon = "eye" })
-local CombatTab = Window:Tab({ Title = "Combat", Icon = "crosshairs" })
-local FapTab = Window:Tab({ Title = "Фтап", Icon = "wind" })
-local SettingsTab = Window:Tab({ Title = "Settings", Icon = "gear" })
-
-local MoveSec = MoveTab:Section({ Title = "Speed", Opened = true })
-MoveSec:Slider({ Title = "Speed", Flag = "SpeedValue", Value = { Min = 16, Max = 200, Default = Config.Speed }, Step = 1, Callback = function(v)
-    Config.Speed = v
-    if State.Speed and LP.Character and LP.Character:FindFirstChild("Humanoid") then
-        LP.Character.Humanoid.WalkSpeed = v
-    end
-end })
-MoveSec:Toggle({ Title = "Speed Boost", Flag = "SpeedEnabled", Value = false, Callback = function(s)
-    State.Speed = s
-    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
-        LP.Character.Humanoid.WalkSpeed = s and Config.Speed or 16
-    end
-    notify("Speed", s and "ON" or "OFF", 2)
-end })
-
-local JumpSec = MoveTab:Section({ Title = "Jump" })
-JumpSec:Slider({ Title = "Jump", Flag = "JumpValue", Value = { Min = 50, Max = 300, Default = Config.Jump }, Step = 1, Callback = function(v)
-    Config.Jump = v
-    if State.Jump and LP.Character and LP.Character:FindFirstChild("Humanoid") then
-        LP.Character.Humanoid.JumpPower = v
-    end
-end })
-JumpSec:Toggle({ Title = "Jump Boost", Flag = "JumpEnabled", Value = false, Callback = function(s)
-    State.Jump = s
-    if LP.Character and LP.Character:FindFirstChild("Humanoid") then
-        local hum = LP.Character.Humanoid
-        hum.UseJumpPower = true
-        hum.JumpPower = s and Config.Jump or 50
-    end
-    notify("Jump", s and "ON" or "OFF", 2)
-end })
-
-local FlySec = MoveTab:Section({ Title = "Fly" })
-FlySec:Slider({ Title = "Fly Speed", Flag = "FlySpeedValue", Value = { Min = 10, Max = 300, Default = Config.FlySpeed }, Step = 1, Callback = function(v) Config.FlySpeed = v end })
-
-local flyBV, flyBG
-local function startFly()
-    local char = LP.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = char.HumanoidRootPart
-    local hum = char:FindFirstChild("Humanoid")
-    flyBV = Instance.new("BodyVelocity")
-    flyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    flyBV.Velocity = Vector3.zero
-    flyBV.Parent = hrp
-    flyBG = Instance.new("BodyGyro")
-    flyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    flyBG.P = 9e4
-    flyBG.Parent = hrp
-    if hum then hum.PlatformStand = true end
-    RunService:BindToRenderStep("FoxFly", Enum.RenderPriority.Camera.Value, function()
-        if not State.Fly or not flyBV or not flyBG then return end
-        local cam = workspace.CurrentCamera
-        flyBG.CFrame = cam.CFrame
-        local m = Vector3.zero
-        if UIS:IsKeyDown(Enum.KeyCode.W) then m += cam.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.S) then m -= cam.CFrame.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then m -= cam.CFrame.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then m += cam.CFrame.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then m += Vector3.yAxis end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then m -= Vector3.yAxis end
-        flyBV.Velocity = m.Magnitude > 0 and m.Unit * Config.FlySpeed or Vector3.zero
-    end)
-end
-local function stopFly()
-    RunService:UnbindFromRenderStep("FoxFly")
-    if flyBV then flyBV:Destroy(); flyBV = nil end
-    if flyBG then flyBG:Destroy(); flyBG = nil end
-    local char = LP.Character
-    local hum = char and char:FindFirstChild("Humanoid")
-    if hum then hum.PlatformStand = false end
-end
-FlySec:Toggle({ Title = "Fly", Flag = "FlyEnabled", Value = false, Callback = function(s)
-    State.Fly = s
-    if s then startFly() else stopFly() end
-    notify("Fly", s and "ON" or "OFF", 2)
-end })
-
-local noclipSaved = {}
-local noclipConn
-local function startNoclip()
-    noclipSaved = {}
-    noclipConn = RunService.Stepped:Connect(function()
-        local char = LP.Character
-        if not char then return end
-        for _, p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") and p.CanCollide then
-                if noclipSaved[p] == nil then noclipSaved[p] = true end
-                p.CanCollide = false
-            end
-        end
-    end)
-end
-local function stopNoclip()
-    if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
-    for part, orig in pairs(noclipSaved) do
-        if part and part.Parent then part.CanCollide = orig end
-    end
-    noclipSaved = {}
-    local char = LP.Character
-    if char then
-        for _, p in ipairs(char:GetDescendants()) do
-            if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then p.CanCollide = true end
-        end
-    end
-end
-MoveTab:Section({ Title = "Noclip" }):Toggle({ Title = "Noclip", Flag = "NoclipEnabled", Value = false, Callback = function(s)
-    State.Noclip = s
-    if s then startNoclip() else stopNoclip() end
-    notify("Noclip", s and "ON" or "OFF", 2)
-end })
-
-MoveTab:Section({ Title = "Infinite Jump" }):Toggle({ Title = "Infinite Jump", Flag = "InfJumpEnabled", Value = false, Callback = function(s)
-    State.InfiniteJump = s
-    notify("Infinite Jump", s and "ON" or "OFF", 2)
-end })
-
-UIS.JumpRequest:Connect(function()
-    if State.InfiniteJump and LP.Character then
-        local hum = LP.Character:FindFirstChild("Humanoid")
-        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
-    end
-end)
-
-local espFolder = Instance.new("Folder", CoreGui)
-espFolder.Name = "MM2_ESP"
-
-local function clearPlayerESP(player)
-    for _, v in ipairs(espFolder:GetChildren()) do
-        if v:GetAttribute("Owner") == player.UserId then v:Destroy() end
-    end
-end
-
-local function buildESP(player)
-    if player == LP then return end
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
+local function setFly(enabled)
+    Config.FlyEnabled = enabled
+    local hrp = getHRP() local hum = getHum()
     if not hrp then return end
-    clearPlayerESP(player)
-    local role = getPlayerRole(player)
-    local color = ROLE_COLORS[role]
-    local bb = Instance.new("BillboardGui")
-    bb.Size = UDim2.new(0, 120, 0, 24)
-    bb.StudsOffset = Vector3.new(0, 3, 0)
-    bb.AlwaysOnTop = true
-    bb.Adornee = hrp
-    bb.Parent = espFolder
-    bb:SetAttribute("Owner", player.UserId)
-    local label = Instance.new("TextLabel", bb)
-    label.Size = UDim2.fromScale(1, 1)
-    label.BackgroundTransparency = 1
-    label.Text = player.Name .. " [" .. role .. "]"
-    label.TextColor3 = color
-    label.TextStrokeTransparency = 0
-    label.TextSize = 14
-    label.Font = Enum.Font.SourceSansBold
-    local box = Instance.new("BoxHandleAdornment")
-    box.Size = Vector3.new(4, 6, 4)
-    box.Adornee = hrp
-    box.AlwaysOnTop = true
-    box.ZIndex = 5
-    box.Transparency = 0.5
-    box.Color3 = color
-    box.Parent = espFolder
-    box:SetAttribute("Owner", player.UserId)
-end
-
-local function refreshESP()
-    espFolder:ClearAllChildren()
-    if not State.ESP then return end
-    for _, p in ipairs(Players:GetPlayers()) do buildESP(p) end
-end
-
-Players.PlayerAdded:Connect(function(p) if State.ESP then task.wait(1); buildESP(p) end end)
-Players.PlayerRemoving:Connect(function(p) clearPlayerESP(p) end)
-
-RunService.Heartbeat:Connect(function()
-    if not State.ESP then return end
-    for _, v in ipairs(espFolder:GetChildren()) do
-        local uid = v:GetAttribute("Owner")
-        if not uid then continue end
-        local p = Players:GetPlayerByUserId(uid)
-        if not p or not p.Character then v:Destroy() continue end
-        local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-        if not hrp then v:Destroy() continue end
-        if v:IsA("BillboardGui") or v:IsA("BoxHandleAdornment") then v.Adornee = hrp end
-        local role = getPlayerRole(p)
-        local color = ROLE_COLORS[role]
-        if v:IsA("BoxHandleAdornment") then v.Color3 = color
-        elseif v:IsA("BillboardGui") then
-            local lbl = v:FindFirstChildOfClass("TextLabel")
-            if lbl then lbl.TextColor3 = color; lbl.Text = p.Name .. " [" .. role .. "]" end
-        end
-    end
-end)
-
-VisTab:Section({ Title = "ESP", Opened = true }):Toggle({ Title = "ESP (роли)", Flag = "ESPEnabled", Value = false, Callback = function(s)
-    State.ESP = s
-    refreshESP()
-    notify("ESP", s and "ON" or "OFF", 2)
-end })
-
-local savedLight = {}
-VisTab:Section({ Title = "Fullbright" }):Toggle({ Title = "Fullbright", Flag = "FullbrightEnabled", Value = false, Callback = function(s)
-    State.Fullbright = s
-    if s then
-        savedLight.Brightness = Lighting.Brightness
-        savedLight.Ambient = Lighting.Ambient
-        savedLight.Outdoor = Lighting.OutdoorAmbient
-        savedLight.FogEnd = Lighting.FogEnd
-        Lighting.Brightness = 2
-        Lighting.Ambient = Color3.new(1,1,1)
-        Lighting.OutdoorAmbient = Color3.new(1,1,1)
-        Lighting.FogEnd = 1e6
+    if enabled then
+        local bv = Instance.new("BodyVelocity", hrp); bv.Name = "Monolith_FlyBV"; bv.MaxForce = Vector3.new(9e9, 9e9, 9e9); bv.Velocity = Vector3.zero
+        local bg = Instance.new("BodyGyro", hrp); bg.Name = "Monolith_FlyBG"; bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9); bg.P = 9e4
+        if hum then hum.PlatformStand = true end
+        RunService:BindToRenderStep("Monolith_Fly", Enum.RenderPriority.Camera.Value, function()
+            if not Config.FlyEnabled then return end
+            local h = getHRP() if not h then return end
+            local b = h:FindFirstChild("Monolith_FlyBV") local g = h:FindFirstChild("Monolith_FlyBG")
+            if not b or not g then return end
+            g.CFrame = Camera.CFrame
+            local m = Vector3.zero
+            if UIS:IsKeyDown(Enum.KeyCode.W) then m += Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then m -= Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then m -= Camera.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then m += Camera.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.Space) then m += Vector3.yAxis end
+            if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then m -= Vector3.yAxis end
+            b.Velocity = m.Magnitude > 0 and m.Unit * Config.FlySpeed or Vector3.zero
+        end)
     else
-        Lighting.Brightness = savedLight.Brightness or 1
-        Lighting.Ambient = savedLight.Ambient or Color3.fromRGB(128,128,128)
-        Lighting.OutdoorAmbient = savedLight.Outdoor or Color3.fromRGB(128,128,128)
-        Lighting.FogEnd = savedLight.FogEnd or 1000
-    end
-    notify("Fullbright", s and "ON" or "OFF", 2)
-end })
-
-local aimStickyTarget = nil
-local aimStickyTime = 0
-
-local function isValidTarget(p)
-    if p == LP then return false end
-    local char = p.Character
-    if not char then return false end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChild("Humanoid")
-    if not hrp or not hum then return false end
-    return hum.Health > 0
-end
-
-local function getClosestTarget()
-    local cam = workspace.CurrentCamera
-    local cx = cam.ViewportSize.X / 2
-    local cy = cam.ViewportSize.Y / 2
-    local closest, minDist = nil, Config.AimFOV
-    for _, p in ipairs(Players:GetPlayers()) do
-        if isValidTarget(p) then
-            local hrp = p.Character.HumanoidRootPart
-            local pos, onScreen = cam:WorldToViewportPoint(hrp.Position)
-            if onScreen and pos.Z > 0 then
-                local dist = math.sqrt((pos.X - cx)^2 + (pos.Y - cy)^2)
-                if dist < minDist then minDist = dist; closest = p end
-            end
-        end
-    end
-    return closest
-end
-
-RunService.RenderStepped:Connect(function()
-    if not State.Aim then aimStickyTarget = nil; return end
-    if not State.AimKeyHeld then return end
-    local now = tick()
-    local cam = workspace.CurrentCamera
-    if aimStickyTarget and isValidTarget(aimStickyTarget) then
-        local hrp = aimStickyTarget.Character and aimStickyTarget.Character:FindFirstChild("HumanoidRootPart")
+        RunService:UnbindFromRenderStep("Monolith_Fly")
         if hrp then
-            local pos, onScreen = cam:WorldToViewportPoint(hrp.Position)
-            if onScreen and pos.Z > 0 then
-                local dist = math.sqrt((pos.X - cam.ViewportSize.X/2)^2 + (pos.Y - cam.ViewportSize.Y/2)^2)
-                if dist <= Config.AimFOV and now - aimStickyTime < Config.AimSticky then
-                    cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, hrp.Position), Config.AimSmooth)
-                    return
+            if hrp:FindFirstChild("Monolith_FlyBV") then hrp.Monolith_FlyBV:Destroy() end
+            if hrp:FindFirstChild("Monolith_FlyBG") then hrp.Monolith_FlyBG:Destroy() end
+        end
+        if hum then hum.PlatformStand = false end
+    end
+end
+
+local function setSpeed(enabled, value)
+    Config.SpeedEnabled = enabled
+    if value then Config.SpeedValue = value end
+    local hum = getHum()
+    if hum then hum.WalkSpeed = enabled and Config.SpeedValue or 16 end
+end
+
+local function setStrength(enabled)
+    Config.StrengthEnabled = enabled
+    if State.StrengthConnection then State.StrengthConnection:Disconnect(); State.StrengthConnection = nil end
+    if not enabled then return end
+    State.StrengthConnection = workspace.ChildAdded:Connect(function(model)
+        if model.Name == "GrabParts" then
+            local grabPart = model:FindFirstChild("GrabPart")
+            if not grabPart then return end
+            local weld = grabPart:FindFirstChild("WeldConstraint")
+            if not weld or not weld.Part1 then return end
+            local partToImpulse = weld.Part1
+            local velocityObj = Instance.new("BodyVelocity", partToImpulse)
+            velocityObj.MaxForce = Vector3.new(0, 0, 0); velocityObj.Velocity = Vector3.zero
+            model:GetPropertyChangedSignal("Parent"):Connect(function()
+                if not model.Parent then
+                    if UIS:GetLastInputType() == Enum.UserInputType.MouseButton2 then
+                        velocityObj.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                        velocityObj.Velocity = Camera.CFrame.LookVector * Config.ThrowPower
+                    end
+                    Debris:AddItem(velocityObj, 1)
                 end
-            end
+            end)
         end
-    end
-    local target = getClosestTarget()
-    aimStickyTarget = target
-    aimStickyTime = now
-    if not target then return end
-    local hrp = target.Character.HumanoidRootPart
-    cam.CFrame = cam.CFrame:Lerp(CFrame.new(cam.CFrame.Position, hrp.Position), Config.AimSmooth)
-end)
-
-local AimSec = CombatTab:Section({ Title = "Aim", Opened = true })
-AimSec:Slider({ Title = "Aim FOV", Flag = "AimFOV", Value = { Min = 50, Max = 500, Default = Config.AimFOV }, Step = 10, Callback = function(v) Config.AimFOV = v end })
-AimSec:Slider({ Title = "Aim Smooth", Flag = "AimSmooth", Value = { Min = 5, Max = 100, Default = math.floor(Config.AimSmooth * 100) }, Step = 5, Callback = function(v) Config.AimSmooth = v / 100 end })
-AimSec:Toggle({ Title = "Aim (hold key)", Flag = "AimEnabled", Value = false, Callback = function(s)
-    State.Aim = s
-    aimStickyTarget = nil
-    notify("Aim", s and "ON" or "OFF", 2)
-end })
-
-local KnifeSec = CombatTab:Section({ Title = "Auto-Knife" })
-KnifeSec:Slider({ Title = "Knife Range", Flag = "KnifeRange", Value = { Min = 5, Max = 15, Default = Config.KnifeRange }, Step = 1, Callback = function(v) Config.KnifeRange = v end })
-KnifeSec:Slider({ Title = "Knife Cooldown", Flag = "KnifeCD", Value = { Min = 40, Max = 150, Default = math.floor(Config.KnifeCooldown * 100) }, Step = 5, Callback = function(v) Config.KnifeCooldown = v / 100 end })
-
-local lastKnifeTime = 0
-RunService.Heartbeat:Connect(function()
-    if not State.AutoKnife then return end
-    if tick() - lastKnifeTime < Config.KnifeCooldown then return end
-    local myChar = LP.Character
-    if not myChar then return end
-    local myHRP = myChar:FindFirstChild("HumanoidRootPart")
-    if not myHRP then return end
-    local knife
-    for _, tool in ipairs(myChar:GetChildren()) do
-        if tool:IsA("Tool") and tool.Name == "Knife" then knife = tool; break end
-    end
-    if not knife then return end
-    local closest, closestDist = nil, Config.KnifeRange
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p == LP then continue end
-        local char = p.Character
-        if not char then continue end
-        local hum = char:FindFirstChild("Humanoid")
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hum or not hrp or hum.Health <= 0 then continue end
-        local dist = (myHRP.Position - hrp.Position).Magnitude
-        if dist < closestDist then closestDist = dist; closest = p end
-    end
-    if closest then
-        local hrp = closest.Character.HumanoidRootPart
-        myHRP.CFrame = CFrame.new(myHRP.Position, Vector3.new(hrp.Position.X, myHRP.Position.Y, hrp.Position.Z))
-        pcall(function() knife:Activate() end)
-        lastKnifeTime = tick()
-    end
-end)
-
-KnifeSec:Toggle({ Title = "Auto-Knife", Flag = "AutoKnifeEnabled", Value = false, Callback = function(s)
-    State.AutoKnife = s
-    notify("Auto-Knife", s and "ON" or "OFF", 2)
-end })
-
-local function getAlivePlayers()
-    local list = {}
-    for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local hum = p.Character:FindFirstChildOfClass("Humanoid")
-            if hum and hum.Health > 0 then table.insert(list, p.Name) end
-        end
-    end
-    return list
+    end)
 end
 
-local selectedPlayer = nil
+local function setAntiGrab(enabled)
+    Config.AntiGrabEnabled = enabled
+    if State.AntiGrabConnection then State.AntiGrabConnection:Disconnect(); State.AntiGrabConnection = nil end
+    if not enabled then return end
+    State.AntiGrabConnection = RunService.Heartbeat:Connect(function()
+        local character = LP.Character
+        if not character then return end
+        local head = character:FindFirstChild("Head")
+        if not head then return end
+        local partOwner = head:FindFirstChild("PartOwner")
+        if not partOwner then return end
+        pcall(function()
+            if Struggle then Struggle:FireServer() end
+            if StopAllVelocity then StopAllVelocity:FireServer() end
+        end)
+        for _, part in ipairs(character:GetChildren()) do
+            if part:IsA("BasePart") then part.Anchored = true end
+        end
+        task.spawn(function()
+            local held = LP:FindFirstChild("IsHeld")
+            if held then while held.Value do task.wait() end else task.wait(0.5) end
+            local c = LP.Character
+            if c then for _, part in ipairs(c:GetChildren()) do if part:IsA("BasePart") then part.Anchored = false end end end
+        end)
+    end)
+end
 
-local function stopFling()
-    State.FlingActive = false
-    if State.FlingThread then
-        pcall(function() task.cancel(State.FlingThread) end)
-        State.FlingThread = nil
-    end
+local function setAntiKickGrab(enabled)
+    Config.AntiKickGrabEnabled = enabled
+    if State.AntiKickGrabConnection then State.AntiKickGrabConnection:Disconnect(); State.AntiKickGrabConnection = nil end
+    if not enabled then return end
+    State.AntiKickGrabConnection = RunService.Heartbeat:Connect(function()
+        local hrp = getHRP() if not hrp then return end
+        local firePart = hrp:FindFirstChild("FirePlayerPart")
+        if firePart and firePart:FindFirstChild("PartOwner") and firePart.PartOwner.Value ~= LP.Name then
+            pcall(function() if RagdollRemote then RagdollRemote:FireServer(hrp, 0) end end)
+            task.wait(0.1)
+            pcall(function() if Struggle then Struggle:FireServer() end end)
+        end
+    end)
+end
+
+local function setupAntiExplosion(character)
+    local humanoid = character:WaitForChild("Humanoid", 5)
+    if not humanoid then return end
+    local ragdolled = humanoid:FindFirstChild("Ragdolled")
+    if not ragdolled then return end
+    State.AntiExplosionConnection = ragdolled:GetPropertyChangedSignal("Value"):Connect(function()
+        if not Config.AntiExplosionEnabled then return end
+        for _, part in ipairs(character:GetChildren()) do
+            if part:IsA("BasePart") then part.Anchored = ragdolled.Value end
+        end
+    end)
+end
+
+local function setAntiExplosion(enabled)
+    Config.AntiExplosionEnabled = enabled
+    if State.AntiExplosionConnection then State.AntiExplosionConnection:Disconnect(); State.AntiExplosionConnection = nil end
+    if State.AntiExplosionCharConn then State.AntiExplosionCharConn:Disconnect(); State.AntiExplosionCharConn = nil end
+    if not enabled then return end
     local char = LP.Character
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.PlatformStand = false end
-    local myHRP = char and char:FindFirstChild("HumanoidRootPart")
-    if myHRP then
-        if myHRP:FindFirstChild("FoxFlingSpinBV") then myHRP.FoxFlingSpinBV:Destroy() end
-        if myHRP:FindFirstChild("FoxFlingSpinBG") then myHRP.FoxFlingSpinBG:Destroy() end
-        myHRP.Anchored = false
-    end
-    if State.FlingTarget and State.FlingTarget.Character then
-        local tHRP = State.FlingTarget.Character:FindFirstChild("HumanoidRootPart")
-        if tHRP then
-            if tHRP:FindFirstChild("FoxFlingTargetBV") then tHRP.FoxFlingTargetBV:Destroy() end
-            if tHRP:FindFirstChild("FoxFlingTargetBG") then tHRP.FoxFlingTargetBG:Destroy() end
-        end
-    end
-    State.FlingTarget = nil
+    if char then setupAntiExplosion(char) end
+    State.AntiExplosionCharConn = LP.CharacterAdded:Connect(setupAntiExplosion)
 end
 
-local function startFling()
-    if State.FlingActive then return end
-    if not selectedPlayer then
-        notify("Фтап", "Сначала выбери игрока", 2)
-        return
-    end
-    local target = Players:FindFirstChild(selectedPlayer)
-    if not target or not target.Character then
-        notify("Фтап", "Игрок не найден / мёртв", 2)
-        return
-    end
-    local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
-    if not targetHRP then
-        notify("Фтап", "У игрока нет HRP", 2)
-        return
-    end
-
-    State.FlingActive = true
-    State.FlingTarget = target
-
-    local myChar = LP.Character
-    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
-    local myHum = myChar and myChar:FindFirstChildOfClass("Humanoid")
-    if not myHRP then
-        notify("Фтап", "У тебя нет HRP", 2)
-        State.FlingActive = false
-        return
-    end
-
-    if myHum then myHum.PlatformStand = true end
-
-    myHRP.CFrame = targetHRP.CFrame
-
-    local spinBV = Instance.new("BodyVelocity")
-    spinBV.Name = "FoxFlingSpinBV"
-    spinBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    spinBV.Velocity = Vector3.zero
-    spinBV.Parent = myHRP
-
-    local spinBG = Instance.new("BodyGyro")
-    spinBG.Name = "FoxFlingSpinBG"
-    spinBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    spinBG.P = 9e4
-    spinBG.Parent = myHRP
-
-    State.FlingThread = task.spawn(function()
-        local angle = 0
-        while State.FlingActive do
-            local char = LP.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if not hrp or not hrp.Parent then break end
-            if not target or not target.Character then
-                notify("Фтап", "Цель пропала", 2)
-                break
-            end
-            local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
-            if not tHRP or not tHRP.Parent then
-                notify("Фтап", "Цель мертва", 2)
-                break
-            end
-
-            angle = angle + math.rad(Config.SpinSpeed)
-            hrp.CFrame = CFrame.new(tHRP.Position) * CFrame.Angles(0, angle, 0)
-            spinBV.Velocity = Vector3.zero
-            spinBG.CFrame = hrp.CFrame
-
-            task.wait()
-        end
-        if spinBV then spinBV:Destroy() end
-        if spinBG then spinBG:Destroy() end
-        if myHum then myHum.PlatformStand = false end
-        State.FlingActive = false
-        State.FlingTarget = nil
-    end)
-
-    task.spawn(function()
-        while State.FlingActive do
-            if not target or not target.Character then break end
-            local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
-            if not tHRP then break end
-            local bv = tHRP:FindFirstChild("FoxFlingTargetBV") or Instance.new("BodyVelocity", tHRP)
-            bv.Name = "FoxFlingTargetBV"
-            bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-            bv.Velocity = Vector3.new(
-                math.random(-Config.FlingPower, Config.FlingPower),
-                Config.FlingUp,
-                math.random(-Config.FlingPower, Config.FlingPower)
-            )
-            local bg = tHRP:FindFirstChild("FoxFlingTargetBG") or Instance.new("BodyAngularVelocity", tHRP)
-            bg.Name = "FoxFlingTargetBG"
-            bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-            bg.AngularVelocity = Vector3.new(
-                math.random(-Config.FlingSpin, Config.FlingSpin),
-                math.random(-Config.FlingSpin, Config.FlingSpin),
-                math.random(-Config.FlingSpin, Config.FlingSpin)
-            )
-            task.wait(0.25)
-        end
-        if target and target.Character then
-            local tHRP = target.Character:FindFirstChild("HumanoidRootPart")
-            if tHRP then
-                if tHRP:FindFirstChild("FoxFlingTargetBV") then tHRP.FoxFlingTargetBV:Destroy() end
-                if tHRP:FindFirstChild("FoxFlingTargetBG") then tHRP.FoxFlingTargetBG:Destroy() end
+local function setSelfDefense(enabled)
+    Config.SelfDefenseEnabled = enabled
+    if State.SelfDefenseCoroutine then State.SelfDefenseCoroutine:Disconnect(); State.SelfDefenseCoroutine = nil end
+    if not enabled then return end
+    State.SelfDefenseCoroutine = RunService.Heartbeat:Connect(function()
+        local character = LP.Character
+        if not character then return end
+        local head = character:FindFirstChild("Head")
+        if not head then return end
+        local partOwner = head:FindFirstChild("PartOwner")
+        if not partOwner then return end
+        local attacker = Players:FindFirstChild(partOwner.Value)
+        if attacker and attacker.Character then
+            pcall(function()
+                if Struggle then Struggle:FireServer() end
+                if SetNetworkOwner and attacker.Character.Head then
+                    SetNetworkOwner:FireServer(attacker.Character.Head, attacker.Character.HumanoidRootPart.CFrame)
+                end
+            end)
+            task.wait(0.1)
+            local target = attacker.Character:FindFirstChild("Torso") or attacker.Character:FindFirstChild("UpperTorso")
+            if target then
+                local velocity = target:FindFirstChild("Monolith_Suspend") or Instance.new("BodyVelocity")
+                velocity.Name = "Monolith_Suspend"; velocity.Parent = target
+                velocity.Velocity = Vector3.new(0, 50, 0); velocity.MaxForce = Vector3.new(0, math.huge, 0)
+                Debris:AddItem(velocity, 2)
             end
         end
     end)
+end
+
+local function grabTarget(target)
+    if not target or not target.hrp then return end
+    if tick() - State.LastGrab < 0.3 then return end
+    State.LastGrab = tick()
+    for _, c in pairs(State.GrabConstraints) do if c then c:Destroy() end end
+    State.GrabConstraints = {}
+    local myHRP = getHRP() if not myHRP then return end
+    State.GrabbedTarget = target
+    if SetNetworkOwner then pcall(function() SetNetworkOwner:FireServer(target.hrp, target.hrp.CFrame) end) end
+    
+    local bv = Instance.new("BodyVelocity", target.hrp)
+    bv.Name = "Monolith_GrabBV"
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    
+    if Config.GrabMode == "Massless" then
+        bv.Velocity = Vector3.zero
+        target.hrp.CustomPhysicalProperties = PhysicalProperties.new(0.01, 0.01, 0.01, 0, 0)
+    elseif Config.GrabMode == "Kill" then
+        bv.Velocity = Vector3.new(0, -500, 0)
+    else
+        bv.Velocity = Vector3.zero
+    end
+    table.insert(State.GrabConstraints, bv)
+end
+
+local function releaseGrab()
+    if not State.GrabbedTarget then return end
+    local target = State.GrabbedTarget
+    local targetHRP = target.hrp
+    for _, c in pairs(State.GrabConstraints) do if c then c:Destroy() end end
+    State.GrabConstraints = {}; State.GrabbedTarget = nil
+    if not targetHRP or not targetHRP.Parent then return end
+    
+    if Config.GrabMode == "Kill" then
+        targetHRP.CFrame = CFrame.new(0, -100, 0)
+    else
+        local bv = Instance.new("BodyVelocity", targetHRP)
+        bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        bv.Velocity = Camera.CFrame.LookVector * Config.ThrowPower + Vector3.new(0, Config.ThrowPower * 0.4, 0)
+        Debris:AddItem(bv, 1)
+    end
+end
+
+local function FlingAll()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LP and p.Character then
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local bv = Instance.new("BodyVelocity"); bv.Velocity = Vector3.new(math.random(-500, 500), 500, math.random(-500, 500)); bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge); bv.Parent = hrp
+                Debris:AddItem(bv, 0.5)
+            end
+        end
+    end
+    WindUI:Notify({Title="MONOLITH", Content="Fling All Executed!", Icon="wind"})
+end
+
+local function toggleSkybox(enabled)
+    Config.SkyboxEnabled = enabled
+    if enabled then
+        if State.SkyObject then State.SkyObject:Destroy() end
+        local preset = SkyPresets[Config.CurrentSkybox]
+        if preset then
+            local sky = Instance.new("Sky")
+            sky.SkyboxUp = preset.Up; sky.SkyboxDn = preset.Dn; sky.SkyboxFt = preset.Ft; sky.SkyboxBk = preset.Bk; sky.SkyboxLf = preset.Lf; sky.SkyboxRt = preset.Rt
+            sky.Parent = Lighting
+            State.SkyObject = sky
+        end
+    else
+        if State.SkyObject then State.SkyObject:Destroy(); State.SkyObject = nil end
+    end
+end
+
+local function toggleShaders(enabled)
+    if enabled then
+        if not State.Shaders then
+            State.Shaders = {}
+            local bloom = Instance.new("BloomEffect", Lighting); bloom.Intensity = 0.5; bloom.Size = 24; table.insert(State.Shaders, bloom)
+            local color = Instance.new("ColorCorrectionEffect", Lighting); color.Saturation = 0.2; color.Contrast = 0.1; table.insert(State.Shaders, color)
+        end
+    else
+        if State.Shaders then for _, v in ipairs(State.Shaders) do v:Destroy() end; State.Shaders = nil end
+    end
+end
+
+local function toggleFullbright(enabled)
+    Config.FullbrightEnabled = enabled
+    if enabled then
+        Lighting.Brightness = 3; Lighting.Ambient = Color3.new(1, 1, 1); Lighting.OutdoorAmbient = Color3.new(1, 1, 1); Lighting.FogEnd = 1e6; Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = State.OriginalBrightness; Lighting.Ambient = State.OriginalAmbient; Lighting.OutdoorAmbient = State.OriginalOutdoorAmbient; Lighting.FogEnd = State.OriginalFogEnd; Lighting.GlobalShadows = true
+    end
 end
 
 local function isMyPart(part)
@@ -637,36 +363,44 @@ end
 
 local function stopBlackHole()
     Config.BlackHoleActive = false
-    for _, t in ipairs(Config.BlackHoleTasks) do pcall(function() task.cancel(t) end) end
-    Config.BlackHoleTasks = {}
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj.Name == "FoxBlackHoleBV" then obj:Destroy() end
+    for _, t in ipairs(State.BlackHoleTasks) do pcall(function() task.cancel(t) end) end
+    State.BlackHoleTasks = {}
+    for _, obj in ipairs(workspace:GetDescendants()) do 
+        if obj.Name == "FoxBlackHoleBV" then obj:Destroy() end 
         if obj.Name == "FoxBlackHoleAntiGrav" then obj:Destroy() end
     end
-    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    local hum = getHum()
     if hum then hum.PlatformStand = false end
+    local hrp = getHRP()
+    if hrp then
+        hrp.Anchored = false
+        if hrp:FindFirstChild("FoxBlackHoleBV") then hrp.FoxBlackHoleBV:Destroy() end
+        if hrp:FindFirstChild("FoxBlackHoleAntiGrav") then hrp.FoxBlackHoleAntiGrav:Destroy() end
+    end
 end
 
 local function startBlackHole()
     if Config.BlackHoleActive then return end
     Config.BlackHoleActive = true
 
-    local selfHum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    local selfHum = getHum()
     if selfHum then selfHum.PlatformStand = true end
 
     task.spawn(function()
         while Config.BlackHoleActive do
             local char = LP.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            
             if hrp then
                 local targets = {}
+                
                 if Config.BlackHoleMode == "Все" or Config.BlackHoleMode == "Только пропы" then
                     for _, obj in ipairs(workspace:GetDescendants()) do
                         if obj:IsA("BasePart") and not obj.Anchored then
                             if obj ~= hrp and not isMyPart(obj) then
                                 local isChar = false
-                                for _, p in ipairs(Players:GetPlayers()) do
-                                    if p.Character and obj:IsDescendantOf(p.Character) then isChar = true; break end
+                                for _, p in ipairs(Players:GetPlayers()) do 
+                                    if p.Character and obj:IsDescendantOf(p.Character) then isChar = true break end 
                                 end
                                 if not isChar and not obj:FindFirstChild("FoxBlackHoleBV") then
                                     if (obj.Position - hrp.Position).Magnitude <= Config.BlackHoleRange then
@@ -677,45 +411,55 @@ local function startBlackHole()
                         end
                     end
                 end
+
                 if Config.BlackHoleMode == "Все" or Config.BlackHoleMode == "Только игроки" then
                     for _, p in ipairs(Players:GetPlayers()) do
                         if p ~= LP and p.Character then
                             local hrp2 = p.Character:FindFirstChild("HumanoidRootPart")
-                            if hrp2 and not hrp2:FindFirstChild("FoxBlackHoleBV") and hrp2 ~= hrp and not isMyPart(hrp2) then
+                            if hrp2 and not hrp2:FindFirstChild("FoxBlackHoleBV") 
+                               and hrp2 ~= hrp and not isMyPart(hrp2) then 
                                 if (hrp2.Position - hrp.Position).Magnitude <= Config.BlackHoleRange then
-                                    table.insert(targets, hrp2)
+                                    if SetNetworkOwner then 
+                                        pcall(function() SetNetworkOwner:FireServer(hrp2, hrp2.CFrame) end) 
+                                    end
+                                    table.insert(targets, hrp2) 
                                 end
                             end
                         end
                     end
                 end
+
                 for _, part in ipairs(targets) do
                     if part ~= hrp and not isMyPart(part) and part.Parent then
                         local mass = part:FindFirstChild("FoxBlackHoleAntiGrav") or Instance.new("BodyForce", part)
                         mass.Name = "FoxBlackHoleAntiGrav"
                         mass.Force = Vector3.new(0, part:GetMass() * workspace.Gravity, 0)
+
                         local bv = part:FindFirstChild("FoxBlackHoleBV") or Instance.new("BodyVelocity", part)
                         bv.Name = "FoxBlackHoleBV"
                         bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
                         local offset = math.random() * math.pi * 2
+                        
                         local th = task.spawn(function()
                             while Config.BlackHoleActive and part.Parent do
                                 if not hrp.Parent then break end
                                 if isMyPart(part) then break end
                                 local a = (tick() * Config.BlackHoleSpeed) + offset
                                 local pos = hrp.Position + Vector3.new(
-                                    math.cos(a) * Config.BlackHoleRadius,
-                                    math.random(3, 15),
+                                    math.cos(a) * Config.BlackHoleRadius, 
+                                    math.random(3, 15), 
                                     math.sin(a) * Config.BlackHoleRadius
                                 )
                                 local delta = pos - part.Position
-                                if delta.Magnitude > 0.01 then bv.Velocity = delta.Unit * 80 end
+                                if delta.Magnitude > 0.01 then
+                                    bv.Velocity = delta.Unit * 80 
+                                end
                                 task.wait()
                             end
                             if bv then bv:Destroy() end
                             if mass then mass:Destroy() end
                         end)
-                        table.insert(Config.BlackHoleTasks, th)
+                        table.insert(State.BlackHoleTasks, th)
                     end
                 end
             end
@@ -729,8 +473,8 @@ local function stopRam()
     local char = LP.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
     if hrp then
-        if hrp:FindFirstChild("FoxRamBV") then hrp.FoxRamBV:Destroy() end
-        if hrp:FindFirstChild("FoxRamBG") then hrp.FoxRamBG:Destroy() end
+        if hrp:FindFirstChild("Monolith_RamBV") then hrp.Monolith_RamBV:Destroy() end
+        if hrp:FindFirstChild("Monolith_RamBG") then hrp.Monolith_RamBG:Destroy() end
     end
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if hum then hum.PlatformStand = false end
@@ -746,13 +490,13 @@ local function startRam()
     if hum then hum.PlatformStand = true end
 
     local bv = Instance.new("BodyVelocity")
-    bv.Name = "FoxRamBV"
+    bv.Name = "Monolith_RamBV"
     bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
     bv.Velocity = Vector3.zero
     bv.Parent = hrp
 
     local bg = Instance.new("BodyGyro")
-    bg.Name = "FoxRamBG"
+    bg.Name = "Monolith_RamBG"
     bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
     bg.P = 9e4
     bg.Parent = hrp
@@ -784,166 +528,183 @@ local function startRam()
     end)
 end
 
-local FlingSelectSec = FapTab:Section({ Title = "Выбор игрока", Opened = true })
-local playerDropdown = FlingSelectSec:Dropdown({
-    Title = "Игрок",
-    Flag = "FlingTarget",
-    Values = getAlivePlayers(),
-    Value = nil,
-    Callback = function(v) selectedPlayer = v end
+local Window = WindUI:CreateWindow({
+    Title = T("Title"), Author = "1gor3k", Folder = "MonolithConfig",
+    Size = UDim2.fromOffset(560, 520), Theme = "Dark", Resizable = true, SideBarWidth = 160,
+    HideSearchBar = false, NewElements = true, ScrollBarEnabled = true, Acrylic = false,
+    OpenButton = { Title = "M", Enabled = true, Draggable = true, CornerRadius = UDim.new(1, 0), Color = ColorSequence.new(Color3.fromHex("#00FFAA"), Color3.fromHex("#00AAFF")), OnlyMobile = false },
 })
 
-FlingSelectSec:Button({ Title = "Обновить список", Icon = "refresh-cw", Callback = function()
-    local list = getAlivePlayers()
-    playerDropdown:Refresh(list)
-    notify("Фтап", "Список обновлён (" .. #list .. ")", 2)
-end })
+local MyConfig = Window.ConfigManager:CreateConfig("AutoSave", true)
 
-local FlingSetSec = FapTab:Section({ Title = "Настройки флинга", Opened = true })
-FlingSetSec:Slider({ Title = "Мощность швырка", Flag = "FlingPower", Value = { Min = 100, Max = 3000, Default = Config.FlingPower }, Step = 50, Callback = function(v) Config.FlingPower = v end })
-FlingSetSec:Slider({ Title = "Подброс вверх", Flag = "FlingUp", Value = { Min = 100, Max = 2000, Default = Config.FlingUp }, Step = 50, Callback = function(v) Config.FlingUp = v end })
-FlingSetSec:Slider({ Title = "Вращение цели", Flag = "FlingSpin", Value = { Min = 5, Max = 100, Default = Config.FlingSpin }, Step = 5, Callback = function(v) Config.FlingSpin = v end })
-FlingSetSec:Slider({ Title = "Скорость твоего вращения", Flag = "SpinSpeed", Value = { Min = 5, Max = 200, Default = Config.SpinSpeed }, Step = 5, Callback = function(v) Config.SpinSpeed = v end })
+local GrabTab = Window:Tab({ Title = T("Grab"), Icon = "hand" })
+local DefTab = Window:Tab({ Title = T("Defense"), Icon = "shield" })
+local MoveTab = Window:Tab({ Title = T("Movement"), Icon = "person-running" })
+local VisTab = Window:Tab({ Title = T("Visuals"), Icon = "eye" })
+local BlackHoleTab = Window:Tab({ Title = T("BlackHole"), Icon = "circle-dot" })
+local RamTab = Window:Tab({ Title = T("Ram"), Icon = "wind" })
+local MiscTab = Window:Tab({ Title = T("Misc"), Icon = "gear" })
 
-FapTab:Section({ Title = "Действие" }):Toggle({
-    Title = "Флинг (тп в игрока + кручение + швырок)",
-    Flag = "FlingEnabled",
-    Value = false,
-    Callback = function(s)
-        if s then startFling() else stopFling() end
-        notify("Фтап", s and "ON" or "OFF", 2)
+local GrabSec = GrabTab:Section({ Title = T("Grab"), Opened = true })
+GrabSec:Slider({ Title = T("GrabRange"), Flag = "GrabRange", Value = { Min = 10, Max = 100, Default = 30 }, Step = 1, Callback = function(v) Config.GrabRange = v end })
+GrabSec:Slider({ Title = T("ThrowPower"), Flag = "ThrowPower", Value = { Min = 100, Max = 10000, Default = 300 }, Step = 100, Callback = function(v) Config.ThrowPower = v end })
+GrabSec:Dropdown({ Title = T("GrabMode"), Flag = "GrabMode", Values = {"Normal", "Massless", "Kill"}, Value = "Normal", Callback = function(v) Config.GrabMode = v end })
+GrabSec:Button({ Title = T("Grab") .. " (Q)", Icon = "hand", Callback = function() local t = findClosestTarget(Config.GrabRange) if t then grabTarget(t) end end })
+GrabSec:Button({ Title = "Release (E)", Icon = "arrow-up-from-line", Callback = function() releaseGrab() end })
+GrabTab:Section({ Title = T("Strength") }):Toggle({ Title = T("Strength"), Flag = "StrengthEnabled", Value = false, Callback = setStrength })
+
+local DefProtSec = DefTab:Section({ Title = T("Defense"), Opened = true })
+DefProtSec:Toggle({ Title = T("AntiGrab"), Flag = "AntiGrabEnabled", Value = false, Callback = function(s) setAntiGrab(s) end })
+DefProtSec:Toggle({ Title = T("AntiKick"), Flag = "AntiKickGrabEnabled", Value = false, Callback = function(s) setAntiKickGrab(s) end })
+DefProtSec:Toggle({ Title = T("AntiExplosion"), Flag = "AntiExplosionEnabled", Value = false, Callback = setAntiExplosion })
+DefProtSec:Toggle({ Title = T("AntiFling"), Flag = "AntiFlingEnabled", Value = false, Callback = function(s) Config.AntiFlingEnabled = s end })
+DefTab:Section({ Title = T("SelfDefense") }):Toggle({ Title = T("SelfDefense"), Flag = "SelfDefenseEnabled", Value = false, Callback = function(s) setSelfDefense(s) end })
+
+local MoveSpeedSec = MoveTab:Section({ Title = T("Speed"), Opened = true })
+MoveSpeedSec:Toggle({ Title = T("Speed"), Flag = "SpeedEnabled", Value = false, Callback = function(s) setSpeed(s, Config.SpeedValue) end })
+MoveSpeedSec:Slider({ Title = T("SpeedVal"), Flag = "SpeedValue", Value = { Min = 16, Max = 150, Default = 40 }, Step = 1, Callback = function(v) Config.SpeedValue = v; if Config.SpeedEnabled then setSpeed(true, v) end end })
+local MoveFlySec = MoveTab:Section({ Title = T("Fly") })
+MoveFlySec:Toggle({ Title = T("Fly"), Flag = "FlyEnabled", Value = false, Callback = function(s) setFly(s) end })
+MoveFlySec:Slider({ Title = T("FlySpeed"), Flag = "FlySpeed", Value = { Min = 10, Max = 200, Default = 60 }, Step = 1, Callback = function(v) Config.FlySpeed = v end })
+local MoveMiscSec = MoveTab:Section({ Title = T("Misc") })
+MoveMiscSec:Toggle({ Title = T("Noclip"), Flag = "NoclipEnabled", Value = false, Callback = function(s) Config.NoclipEnabled = s end })
+MoveMiscSec:Toggle({ Title = T("InfJump"), Flag = "InfJumpEnabled", Value = false, Callback = function(s) Config.InfJumpEnabled = s end })
+
+local VisCamSec = VisTab:Section({ Title = T("Visuals"), Opened = true })
+VisCamSec:Toggle({ Title = T("ThirdPerson"), Flag = "ThirdPersonEnabled", Value = false, Callback = function(state)
+    Config.ThirdPersonEnabled = state
+    if state then
+        if not State.oldCameraOffset then State.oldCameraOffset = { Max = LP.CameraMaxZoomDistance, Min = LP.CameraMinZoomDistance, Mode = LP.CameraMode } end
+        LP.CameraMaxZoomDistance = 15; LP.CameraMinZoomDistance = 8; LP.CameraMode = Enum.CameraMode.Classic
+    else
+        if State.oldCameraOffset then LP.CameraMaxZoomDistance = State.oldCameraOffset.Max; LP.CameraMinZoomDistance = State.oldCameraOffset.Min; LP.CameraMode = State.oldCameraOffset.Mode; State.oldCameraOffset = nil end
     end
-})
+end })
+local VisSkySec = VisTab:Section({ Title = T("Skybox") })
+VisSkySec:Toggle({ Title = "Enable Skybox", Flag = "SkyboxEnabled", Value = false, Callback = function(s) toggleSkybox(s) end })
+VisSkySec:Dropdown({ Title = T("Skybox"), Flag = "CurrentSkybox", Values = {"Default", "Vaporwave", "Galaxy", "Storm"}, Value = "Default", Callback = function(v) Config.CurrentSkybox = v; if Config.SkyboxEnabled then toggleSkybox(true) end end })
+VisSkySec:Toggle({ Title = T("Shaders"), Flag = "ShadersEnabled", Value = false, Callback = function(s) toggleShaders(s) end })
+VisTab:Section({ Title = T("ESP") }):Toggle({ Title = T("ESP"), Flag = "ESPEnabled", Value = false, Callback = function(s) Config.ESPEnabled = s; if s then _G.RefreshESP() else _G.ClearESP() end end })
+VisTab:Section({ Title = T("Fullbright") }):Toggle({ Title = T("Fullbright"), Flag = "FullbrightEnabled", Value = false, Callback = toggleFullbright })
 
-local BlackHoleSetSec = FapTab:Section({ Title = "Чёрная дыра", Opened = true })
-BlackHoleSetSec:Dropdown({ Title = "Режим", Flag = "BlackHoleMode", Values = {"Все", "Только игроки", "Только пропы"}, Value = "Все", Callback = function(v) Config.BlackHoleMode = v end })
-BlackHoleSetSec:Slider({ Title = "Радиус вращения", Flag = "BlackHoleRadius", Value = { Min = 5, Max = 50, Default = Config.BlackHoleRadius }, Step = 1, Callback = function(v) Config.BlackHoleRadius = v end })
-BlackHoleSetSec:Slider({ Title = "Скорость", Flag = "BlackHoleSpeed", Value = { Min = 10, Max = 100, Default = Config.BlackHoleSpeed }, Step = 5, Callback = function(v) Config.BlackHoleSpeed = v end })
-BlackHoleSetSec:Slider({ Title = "Радиус сбора", Flag = "BlackHoleRange", Value = { Min = 10, Max = 100, Default = Config.BlackHoleRange }, Step = 5, Callback = function(v) Config.BlackHoleRange = v end })
+local BlackHoleSettings = BlackHoleTab:Section({ Title = "Settings", Opened = true })
+BlackHoleSettings:Dropdown({ Title = "Режим", Flag = "BlackHoleMode", Values = {"Все", "Только игроки", "Только пропы"}, Value = "Все", Callback = function(v) Config.BlackHoleMode = v end })
+BlackHoleSettings:Slider({ Title = "Радиус вращения", Flag = "BlackHoleRadius", Value = { Min = 5, Max = 50, Default = 15 }, Step = 1, Callback = function(v) Config.BlackHoleRadius = v end })
+BlackHoleSettings:Slider({ Title = "Скорость", Flag = "BlackHoleSpeed", Value = { Min = 10, Max = 100, Default = 30 }, Step = 5, Callback = function(v) Config.BlackHoleSpeed = v end })
+BlackHoleSettings:Slider({ Title = "Радиус сбора", Flag = "BlackHoleRange", Value = { Min = 10, Max = 100, Default = 40 }, Step = 5, Callback = function(v) Config.BlackHoleRange = v end })
 
-FapTab:Section({ Title = "Чёрная дыра" }):Toggle({
-    Title = "Включить Чёрную дыру",
-    Flag = "BlackHoleActive",
-    Value = false,
+BlackHoleTab:Section({ Title = "Action" }):Toggle({
+    Title = "Включить Чёрную дыру", Flag = "BlackHoleActive", Value = false,
     Callback = function(state)
         if state then startBlackHole() else stopBlackHole() end
     end,
 })
 
-local RamSetSec = FapTab:Section({ Title = "Влёт в чела (сдох)", Opened = true })
-RamSetSec:Slider({ Title = "Скорость влёта", Flag = "RamSpeed", Value = { Min = 50, Max = 500, Default = Config.RamSpeed }, Step = 10, Callback = function(v) Config.RamSpeed = v end })
-RamSetSec:Slider({ Title = "Радиус убийства", Flag = "RamKillRange", Value = { Min = 2, Max = 20, Default = Config.RamKillRange }, Step = 1, Callback = function(v) Config.RamKillRange = v end })
+local RamSettings = RamTab:Section({ Title = "Настройки влёта", Opened = true })
+RamSettings:Slider({ Title = "Скорость влёта", Flag = "RamSpeed", Value = { Min = 50, Max = 500, Default = 150 }, Step = 10, Callback = function(v) Config.RamSpeed = v end })
+RamSettings:Slider({ Title = "Радиус убийства", Flag = "RamKillRange", Value = { Min = 2, Max = 20, Default = 6 }, Step = 1, Callback = function(v) Config.RamKillRange = v end })
 
-FapTab:Section({ Title = "Влёт в чела" }):Toggle({
-    Title = "Влёт в чела (быстрый + сдох)",
-    Flag = "RamActive",
-    Value = false,
+RamTab:Section({ Title = "Action" }):Toggle({
+    Title = "Влёт в чела (быстрый + сдох)", Flag = "RamActive", Value = false,
     Callback = function(s)
         if s then startRam() else stopRam() end
-        notify("Влёт", s and "ON" or "OFF", 2)
-    end
+    end,
 })
 
-local SettingsKeySec = SettingsTab:Section({ Title = "Keybinds", Opened = true })
-SettingsKeySec:Button({ Title = "Клавиша меню: " .. Config.MenuKey.Name, Icon = "keyboard", Callback = function()
-    notify("Keybind", "Нажми клавишу для меню...", 3)
-    local conn
-    conn = UIS.InputBegan:Connect(function(input, gp)
-        if gp then return end
+local MiscActionsSec = MiscTab:Section({ Title = T("Misc"), Opened = true })
+MiscActionsSec:Button({ Title = T("Rejoin"), Icon = "rotate-cw", Callback = function() TeleportService:Teleport(game.PlaceId, LP) end })
+MiscActionsSec:Button({ Title = T("ServerHop"), Icon = "shuffle", Callback = function()
+    pcall(function()
+        local url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"
+        local res = game:HttpGet(url)
+        for _, s in ipairs(HttpService:JSONDecode(res).data) do
+            if s.playing < s.maxPlayers and s.id ~= game.JobId then TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LP) return end
+        end
+    end)
+end })
+MiscActionsSec:Button({ Title = T("FlingAll"), Icon = "wind", Callback = FlingAll })
+MiscTab:Section({ Title = T("AntiAFK") }):Toggle({ Title = T("AntiAFK"), Flag = "AntiAFKEnabled", Value = false, Callback = function(s)
+    Config.AntiAFKEnabled = s
+    if s then State.AFKConnection = LP.Idled:Connect(function() VirtualUser:CaptureController(); VirtualUser:ClickButton2(Vector2.new()) end)
+    else if State.AFKConnection then State.AFKConnection:Disconnect(); State.AFKConnection = nil end end
+end })
+
+local MiscSettingsSec = MiscTab:Section({ Title = "Settings" })
+MiscSettingsSec:Dropdown({
+    Title = T("Language"), Flag = "Language",
+    Values = {"Русский", "English", "Українська"}, Value = "Русский",
+    Callback = function(v)
+        if v == "Русский" then Config.Language = "RU"
+        elseif v == "English" then Config.Language = "EN"
+        elseif v == "Українська" then Config.Language = "UA" end
+        WindUI:Notify({Title="MONOLITH", Content="Перезапусти скрипт для применения языка.", Icon="info", Duration=5})
+    end,
+})
+
+MiscSettingsSec:Button({ 
+    Title = T("SetKey") .. ": " .. Config.MenuKey.Name, Icon = "keyboard",
+    Callback = function() 
+        if State.IsListeningForBind then return end
+        State.IsListeningForBind = true
+        WindUI:Notify({Title="Keybind", Content="Нажми на любую клавишу...", Icon="info", Duration=3})
+    end 
+})
+
+local espFolder = Instance.new("Folder", game:GetService("CoreGui"))
+espFolder.Name = "Monolith_ESP"
+_G.ClearESP = function() espFolder:ClearAllChildren() end
+local function buildESP(p)
+    if p == LP or not p.Character then return end
+    local hrp = p.Character:FindFirstChild("HumanoidRootPart") if not hrp then return end
+    local bb = Instance.new("BillboardGui", espFolder); bb.Size = UDim2.new(0, 150, 0, 40); bb.StudsOffset = Vector3.new(0, 2.5, 0); bb.AlwaysOnTop = true; bb.Adornee = hrp; bb:SetAttribute("Owner", p.UserId)
+    local nl = Instance.new("TextLabel", bb); nl.Name = "NameLbl"; nl.Size = UDim2.new(1, 0, 0, 20); nl.BackgroundTransparency = 1; nl.Text = p.Name; nl.TextColor3 = Color3.fromRGB(255, 255, 255); nl.Font = Enum.Font.GothamBold; nl.TextSize = 13; nl.TextStrokeTransparency = 0.3
+    local hp = Instance.new("TextLabel", bb); hp.Name = "HPLbl"; hp.Size = UDim2.new(1, 0, 0, 16); hp.Position = UDim2.new(0, 0, 0, 18); hp.BackgroundTransparency = 1; hp.TextColor3 = Color3.fromRGB(255, 75, 75); hp.Font = Enum.Font.Gotham; hp.TextSize = 11; hp.TextStrokeTransparency = 0.3
+end
+_G.RefreshESP = function() espFolder:ClearAllChildren(); for _, p in ipairs(Players:GetPlayers()) do buildESP(p) end end
+
+RunService.Heartbeat:Connect(function()
+    if Config.SpeedEnabled then local hum = getHum(); if hum and hum.WalkSpeed ~= Config.SpeedValue then hum.WalkSpeed = Config.SpeedValue end end
+    if Config.AntiFlingEnabled then local char = getChar(); if char then local hrp = char:FindFirstChild("HumanoidRootPart"); if hrp and hrp.Velocity.Magnitude > 500 then hrp.Velocity = Vector3.zero end end end
+    if Config.ESPEnabled then
+        local myHRP = getHRP()
+        for _, v in ipairs(espFolder:GetChildren()) do
+            local uid = v:GetAttribute("Owner"); if not uid then continue end
+            local p = Players:GetPlayerByUserId(uid); if not p or not p.Character then v:Destroy() continue end
+            local hrp = p.Character:FindFirstChild("HumanoidRootPart"); local hum = p.Character:FindFirstChildOfClass("Humanoid"); if not hrp then v:Destroy() continue end
+            v.Adornee = hrp
+            if hum and myHRP then local hpLabel = v:FindFirstChild("HPLbl"); if hpLabel then hpLabel.Text = tostring(math.floor(hum.Health)) .. " HP" end end
+        end
+    end
+end)
+
+RunService.Stepped:Connect(function()
+    if Config.NoclipEnabled then local char = getChar(); if char then for _, p in ipairs(char:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end end end
+end)
+
+UIS.JumpRequest:Connect(function()
+    if Config.InfJumpEnabled then local hum = getHum(); if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end end
+end)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if State.IsListeningForBind then
         if input.UserInputType == Enum.UserInputType.Keyboard then
             Config.MenuKey = input.KeyCode
-            saveSettings()
-            notify("Keybind", "Меню → " .. input.KeyCode.Name, 2)
-            conn:Disconnect()
+            State.IsListeningForBind = false
+            WindUI:Notify({Title="Keybind", Content="Клавиша меню изменена на: " .. Config.MenuKey.Name, Icon="check"})
         end
-    end)
-end })
-SettingsKeySec:Button({ Title = "Клавиша Aim: " .. Config.AimKey.Name, Icon = "crosshairs", Callback = function()
-    notify("Keybind", "Нажми клавишу для Aim...", 3)
-    local conn
-    conn = UIS.InputBegan:Connect(function(input, gp)
-        if gp then return end
-        if input.UserInputType == Enum.UserInputType.Keyboard then
-            Config.AimKey = input.KeyCode
-            saveSettings()
-            notify("Keybind", "Aim → " .. input.KeyCode.Name, 2)
-            conn:Disconnect()
-        end
-    end)
-end })
-SettingsKeySec:Button({ Title = "Клавиша Auto-Knife: " .. Config.KnifeKey.Name, Icon = "utensils", Callback = function()
-    notify("Keybind", "Нажми клавишу для Auto-Knife...", 3)
-    local conn
-    conn = UIS.InputBegan:Connect(function(input, gp)
-        if gp then return end
-        if input.UserInputType == Enum.UserInputType.Keyboard then
-            Config.KnifeKey = input.KeyCode
-            saveSettings()
-            notify("Keybind", "Auto-Knife → " .. input.KeyCode.Name, 2)
-            conn:Disconnect()
-        end
-    end)
-end })
-
-local SettingsMiscSec = SettingsTab:Section({ Title = "Misc" })
-SettingsMiscSec:Slider({ Title = "Прозрачность меню %", Flag = "Transparency", Value = { Min = 0, Max = 80, Default = math.floor(Config.Transparency * 100) }, Step = 5, Callback = function(v)
-    Config.Transparency = v / 100
-end })
-SettingsMiscSec:Dropdown({ Title = "Цвет акцента", Flag = "AccentIndex", Values = (function()
-    local t = {}
-    for _, c in ipairs(ACCENT_COLORS) do table.insert(t, c.name) end
-    return t
-end)(), Value = ACCENT_COLORS[Config.AccentIndex or 1].name, Callback = function(v)
-    for i, c in ipairs(ACCENT_COLORS) do
-        if c.name == v then Config.AccentIndex = i; break end
+        return
     end
-    notify("Accent", v, 2)
-end })
-SettingsMiscSec:Button({ Title = "Сбросить настройки", Icon = "rotate-ccw", Callback = function()
-    pcall(function() delfile(SAVE_KEY .. ".json") end)
-    notify("Settings", "Сброшено. Перезапусти скрипт.", 4)
-end })
-
-SettingsTab:Section({ Title = "Actions" }):Button({ Title = "Unload", Icon = "x", Callback = function()
-    stopFly()
-    stopFling()
-    stopBlackHole()
-    stopRam()
-    if State.Noclip then stopNoclip() end
-    espFolder:Destroy()
-    Window:Destroy()
-end })
-
-UIS.InputBegan:Connect(function(inp, gp)
-    if gp then return end
-    if inp.KeyCode == Config.MenuKey then
-        Window:Toggle()
-    end
-    if inp.KeyCode == Config.AimKey then
-        State.AimKeyHeld = true
-    end
-    if inp.KeyCode == Config.KnifeKey then
-        State.AutoKnife = not State.AutoKnife
-        notify("Auto-Knife", State.AutoKnife and "ON" or "OFF", 2)
-    end
+    if input.KeyCode == Config.MenuKey then Window:Toggle() end
+    if input.KeyCode == Enum.KeyCode.Q then local t = findClosestTarget(Config.GrabRange) if t then grabTarget(t) end
+    elseif input.KeyCode == Enum.KeyCode.E then releaseGrab() end
 end)
 
-UIS.InputEnded:Connect(function(inp, gp)
-    if gp then return end
-    if inp.KeyCode == Config.AimKey then
-        State.AimKeyHeld = false
-    end
+LP.CharacterAdded:Connect(function()
+    task.wait(0.8)
+    if Config.SpeedEnabled then setSpeed(true, Config.SpeedValue) end
+    if Config.FlyEnabled then setFly(true) end
+    if Config.ESPEnabled then _G.RefreshESP() end
+    if Config.NoclipEnabled then Config.NoclipEnabled = true end
+    if Config.AntiExplosionEnabled then setAntiExplosion(true) end
 end)
-
-LP.CharacterAdded:Connect(function(char)
-    task.wait(0.7)
-    local hum = char:FindFirstChild("Humanoid")
-    if not hum then return end
-    if State.Speed then hum.WalkSpeed = Config.Speed end
-    if State.Jump then hum.UseJumpPower = true; hum.JumpPower = Config.Jump end
-    if State.Fly then startFly() end
-    if State.ESP then task.wait(0.3); refreshESP() end
-    if State.Noclip then noclipSaved = {}; if not noclipConn then startNoclip() end end
-end)
-
-WindUI:Notify({Title = "MONOLITH", Content = "Loaded" .. (SavedData and " (settings restored)" or ""), Icon = "wind", Duration = 5})
