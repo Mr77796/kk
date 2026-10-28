@@ -12,6 +12,16 @@ local VirtualUser = game:GetService("VirtualUser")
 local Camera = workspace.CurrentCamera
 local LP = Players.LocalPlayer
 
+local KillGrabRemote
+pcall(function()
+    KillGrabRemote = ReplicatedStorage:FindFirstChild("Monolith_KillGrab")
+    if not KillGrabRemote then
+        KillGrabRemote = Instance.new("RemoteEvent")
+        KillGrabRemote.Name = "Monolith_KillGrab"
+        KillGrabRemote.Parent = ReplicatedStorage
+    end
+end)
+
 local GrabEvents, CharacterEvents, SetNetworkOwner, Struggle, StopAllVelocity, RagdollRemote
 pcall(function()
     GrabEvents = ReplicatedStorage:WaitForChild("GrabEvents", 10)
@@ -470,61 +480,96 @@ end
 
 local function stopRam()
     Config.RamActive = false
-    local char = LP.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        if hrp:FindFirstChild("Monolith_RamBV") then hrp.Monolith_RamBV:Destroy() end
-        if hrp:FindFirstChild("Monolith_RamBG") then hrp.Monolith_RamBG:Destroy() end
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name == "Monolith_RamGrab" or obj.Name == "Monolith_RamAlign" then
+            obj:Destroy()
+        end
     end
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if hum then hum.PlatformStand = false end
+    local hum = getHum()
+    if hum then
+        hum.WalkSpeed = Config.SpeedEnabled and Config.SpeedValue or 16
+    end
 end
 
 local function startRam()
     if Config.RamActive then return end
     Config.RamActive = true
-    local char = LP.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-    local hum = char and char:FindFirstChildOfClass("Humanoid")
-    if not hrp then Config.RamActive = false; return end
-    if hum then hum.PlatformStand = true end
 
-    local bv = Instance.new("BodyVelocity")
-    bv.Name = "Monolith_RamBV"
-    bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bv.Velocity = Vector3.zero
-    bv.Parent = hrp
+    local hum = getHum()
+    if not hum then Config.RamActive = false; return end
 
-    local bg = Instance.new("BodyGyro")
-    bg.Name = "Monolith_RamBG"
-    bg.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bg.P = 9e4
-    bg.Parent = hrp
+    hum.WalkSpeed = Config.RamSpeed
 
     task.spawn(function()
         while Config.RamActive do
-            local c = LP.Character
-            local h = c and c:FindFirstChild("HumanoidRootPart")
-            if not h or not h.Parent then break end
-            local cam = workspace.CurrentCamera
-            bg.CFrame = cam.CFrame
-            bv.Velocity = cam.CFrame.LookVector * Config.RamSpeed
+            local char = LP.Character
+            local myHRP = char and char:FindFirstChild("HumanoidRootPart")
+            if not myHRP or not myHRP.Parent then break end
+
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= LP and p.Character then
                     local tHRP = p.Character:FindFirstChild("HumanoidRootPart")
-                    if tHRP and (tHRP.Position - h.Position).Magnitude <= Config.RamKillRange then
-                        local tHum = p.Character:FindFirstChildOfClass("Humanoid")
-                        if tHum then pcall(function() tHum.Health = 0 end) end
+                    local tHum = p.Character:FindFirstChildOfClass("Humanoid")
+                    local tHead = p.Character:FindFirstChild("Head")
+                    if tHRP and tHum and tHum.Health > 0 then
+                        if (tHRP.Position - myHRP.Position).Magnitude <= Config.RamKillRange then
+                            if SetNetworkOwner then
+                                pcall(function() SetNetworkOwner:FireServer(tHRP, tHRP.CFrame) end)
+                                if tHead then
+                                    pcall(function() SetNetworkOwner:FireServer(tHead, tHRP.CFrame) end)
+                                end
+                            end
+
+                            pcall(function()
+                                if RagdollRemote then RagdollRemote:FireServer(tHRP, 1) end
+                            end)
+                            pcall(function() if Struggle then Struggle:FireServer() end end)
+                            pcall(function() if StopAllVelocity then StopAllVelocity:FireServer() end end)
+
+                            if KillGrabRemote then
+                                pcall(function()
+                                    KillGrabRemote:FireServer(p, tHRP, tHum, "Kill")
+                                end)
+                            end
+
+                            if not tHRP:FindFirstChild("Monolith_RamAlign") then
+                                local align = Instance.new("AlignPosition")
+                                align.Name = "Monolith_RamAlign"
+                                align.Attachment0 = tHRP:FindFirstChild("RootAttachment") or (function()
+                                    local a = Instance.new("Attachment", tHRP)
+                                    a.Name = "RootAttachment"
+                                    return a
+                                end)()
+                                align.Attachment1 = myHRP:FindFirstChild("RootAttachment") or (function()
+                                    local a = Instance.new("Attachment", myHRP)
+                                    a.Name = "RootAttachment"
+                                    return a
+                                end)()
+                                align.MaxForce = math.huge
+                                align.Responsiveness = 200
+                                align.Position = Vector3.new(0, -3, 0)
+                                align.Parent = tHRP
+                                Debris:AddItem(align, 1.5)
+                            end
+
+                            task.spawn(function()
+                                for _ = 1, 3 do
+                                    if tHum and tHum.Parent and tHum.Health > 0 then
+                                        pcall(function() tHum.Health = 0 end)
+                                    end
+                                    task.wait(0.1)
+                                end
+                            end)
+                        end
                     end
                 end
             end
             task.wait()
         end
-        if bv then bv:Destroy() end
-        if bg then bg:Destroy() end
-        local c = LP.Character
-        local h2 = c and c:FindFirstChildOfClass("Humanoid")
-        if h2 then h2.PlatformStand = false end
+        local h = getHum()
+        if h then
+            h.WalkSpeed = Config.SpeedEnabled and Config.SpeedValue or 16
+        end
     end)
 end
 
@@ -601,11 +646,11 @@ BlackHoleTab:Section({ Title = "Action" }):Toggle({
 })
 
 local RamSettings = RamTab:Section({ Title = "Настройки влёта", Opened = true })
-RamSettings:Slider({ Title = "Скорость влёта", Flag = "RamSpeed", Value = { Min = 50, Max = 500, Default = 150 }, Step = 10, Callback = function(v) Config.RamSpeed = v end })
-RamSettings:Slider({ Title = "Радиус убийства", Flag = "RamKillRange", Value = { Min = 2, Max = 20, Default = 6 }, Step = 1, Callback = function(v) Config.RamKillRange = v end })
+RamSettings:Slider({ Title = "Скорость бега", Flag = "RamSpeed", Value = { Min = 30, Max = 300, Default = 150 }, Step = 5, Callback = function(v) Config.RamSpeed = v; if Config.RamActive then local h = getHum(); if h then h.WalkSpeed = v end end end })
+RamSettings:Slider({ Title = "Радиус хвата", Flag = "RamKillRange", Value = { Min = 2, Max = 20, Default = 6 }, Step = 1, Callback = function(v) Config.RamKillRange = v end })
 
 RamTab:Section({ Title = "Action" }):Toggle({
-    Title = "Влёт в чела (быстрый + сдох)", Flag = "RamActive", Value = false,
+    Title = "Бег + хват (сдох)", Flag = "RamActive", Value = false,
     Callback = function(s)
         if s then startRam() else stopRam() end
     end,
